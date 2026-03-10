@@ -1,0 +1,191 @@
+/* 会话列表 - 微信风格 */
+.chat-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-item:hover {
+  background: #dcdcdc;
+}
+
+.chat-item.active {
+  background: #c9c9c9;
+}
+
+.chat-item-avatar {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.chat-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.chat-item-name {
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+.chat-item-time {
+  font-size: 12px;
+  color: #b2b2b2;
+  flex-shrink: 0;
+}
+
+.chat-item-preview {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+  font-size: 13px;
+}
+
+/* 联系人列表 */
+.contact-list-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.contact-tabs .ant-tabs-nav {
+  margin-bottom: 0;
+  padding: 0 12px;
+  background: #e9e9e9;
+}
+
+.contact-tabs .ant-tabs-tab {
+  padding: 10px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+.contact-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #1a1a1a;
+}
+
+.contact-tabs .ant-tabs-ink-bar {
+  background: #07c160;
+}
+
+.contact-tabs .ant-tabs-content-holder {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* 联系人项 */
+.contact-items {
+  padding: 8px 0;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.contact-item:hover {
+  background: #dcdcdc;
+}
+
+.contact-item-avatar {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.contact-item-avatar .ant-avatar {
+  border-radius: 4px;
+}
+
+.contact-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-item-name {
+  font-size: 14px;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+}
+
+.contact-item-signature,
+.contact-item-members,
+.contact-item-msg {
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-item-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.contact-item-actions .ant-btn-primary {
+  background: #07c160;
+  border-color: #07c160;
+}
+
+/* 搜索结果 */
+.search-results {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-info {
+  flex: 1;
+  margin-left: 12px;
+}
+
+.search-result-info .name {
+  font-size: 14px;
+  color: #1a1a1a;
+}
+
+.search-result-info .username {
+  font-size: 12px;
+  color: #999;
+}

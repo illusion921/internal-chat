@@ -1,0 +1,66 @@
+.group-info-modal .group-info-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.group-info-modal .group-info-name {
+  font-size: 18px;
+  font-weight: 500;
+  margin-top: 12px;
+  color: #1a1a1a;
+}
+
+.group-info-modal .group-info-announcement {
+  font-size: 13px;
+  color: #666;
+  margin-top: 8px;
+  text-align: center;
+  max-width: 300px;
+}
+
+.group-info-modal .group-info-stats {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+}
+
+.group-info-modal .group-info-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.group-info-modal .group-members {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.group-info-modal .group-members .ant-list-item {
+  padding: 12px 0;
+}
+
+.group-info-modal .group-members .ant-list-item-meta-title {
+  display: flex;
+  align-items: center;
+}
+
+.group-info-modal .group-members .ant-tag {
+  font-size: 11px;
+  padding: 0 6px;
+  line-height: 18px;
+  border-radius: 2px;
+}
+
+.group-info-modal .ant-list-item-action {
+  margin-left: 16px;
+}
+
+.group-info-modal .ant-list-item-action li {
+  padding: 0 4px;
+}

@@ -1,0 +1,123 @@
+// Prisma Schema for Internal Chat (SQLite)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  nickname     String
+  avatar       String?
+  signature    String?
+  status       String   @default("offline") // online, offline
+  lastSeenAt   DateTime? @map("last_seen_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // 关系
+  sentFriendRequests    Friendship[] @relation("UserFriends")
+  receivedFriendRequests Friendship[] @relation("ReceivedFriends")
+  ownedGroups           Group[]      @relation("GroupOwner")
+  groupMemberships      GroupMember[]
+  sentMessages          Message[]    @relation("MessageSender")
+  uploadedFiles         File[]       @relation("FileUploader")
+
+  @@map("users")
+}
+
+// 好友关系表
+model Friendship {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  friendId   String   @map("friend_id")
+  status     String   @default("pending") // pending, accepted, rejected
+  remark     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  // 关系
+  user       User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend     User     @relation("ReceivedFriends", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@map("friendships")
+}
+
+// 群组表
+model Group {
+  id           String   @id @default(uuid())
+  name         String
+  avatar       String?
+  announcement String?
+  ownerId      String   @map("owner_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // 关系
+  owner        User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members      GroupMember[]
+
+  @@map("groups")
+}
+
+// 群成员表
+model GroupMember {
+  id        String   @id @default(uuid())
+  groupId   String   @map("group_id")
+  userId    String   @map("user_id")
+  role      String   @default("member") // owner, admin, member
+  nickname  String?
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  // 关系
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+// 消息表
+model Message {
+  id               String   @id @default(uuid())
+  conversationId   String   @map("conversation_id")
+  conversationType String   @map("conversation_type") // private, group
+  senderId         String   @map("sender_id")
+  content          String?
+  msgType          String   @default("text") @map("msg_type") // text, image, file
+  fileId           String?  @map("file_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // 关系
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  file      File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+// 文件表
+model File {
+  id         String   @id @default(uuid())
+  filename   String
+  filepath   String
+  filesize   Int
+  mimeType   String?  @map("mime_type")
+  uploaderId String   @map("uploader_id")
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // 关系
+  uploader   User      @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+  messages   Message[]
+
+  @@map("files")
+}
