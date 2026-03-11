@@ -36,3 +36,5 @@ uploads/
 # Cache
 .cache/
 *.tsbuildinfo
+# Desktop release builds
+desktop/release/
