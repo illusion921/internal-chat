@@ -37,8 +37,10 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const [ungroupedFriends, setUngroupedFriends] = useState<Friendship[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // 加载好友分组
@@ -66,6 +68,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       message.warning('请输入分组名称');
       return;
     }
+    if (createGroupLoading) return; // 防止重复提交
+    
+    setCreateGroupLoading(true);
     try {
       const response: any = await friendApi.createGroup(newGroupName.trim());
       if (response.code === 0) {
@@ -76,6 +81,8 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       }
     } catch (error) {
       message.error('创建失败');
+    } finally {
+      setCreateGroupLoading(false);
     }
   };
 
@@ -85,6 +92,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       message.warning('请输入分组名称');
       return;
     }
+    if (editGroupLoading) return; // 防止重复提交
+    
+    setEditGroupLoading(true);
     try {
       const response: any = await friendApi.updateGroup(groupId, editGroupName.trim());
       if (response.code === 0) {
@@ -95,6 +105,8 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       }
     } catch (error) {
       message.error('重命名失败');
+    } finally {
+      setEditGroupLoading(false);
     }
   };
 
@@ -537,12 +549,15 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         title="创建分组"
         open={createGroupModalVisible}
         onCancel={() => {
-          setCreateGroupModalVisible(false);
-          setNewGroupName('');
+          if (!createGroupLoading) {
+            setCreateGroupModalVisible(false);
+            setNewGroupName('');
+          }
         }}
         onOk={handleCreateFriendGroup}
         okText="创建"
         cancelText="取消"
+        confirmLoading={createGroupLoading}
         centered
       >
         <Input
@@ -551,6 +566,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
           onChange={(e) => setNewGroupName(e.target.value)}
           maxLength={20}
           autoFocus
+          disabled={createGroupLoading}
         />
       </Modal>
 
@@ -559,12 +575,15 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         title="重命名分组"
         open={!!editGroupId}
         onCancel={() => {
-          setEditGroupId(null);
-          setEditGroupName('');
+          if (!editGroupLoading) {
+            setEditGroupId(null);
+            setEditGroupName('');
+          }
         }}
         onOk={() => editGroupId && handleRenameGroup(editGroupId)}
         okText="确定"
         cancelText="取消"
+        confirmLoading={editGroupLoading}
         centered
       >
         <Input
@@ -573,6 +592,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
           onChange={(e) => setEditGroupName(e.target.value)}
           maxLength={20}
           autoFocus
+          disabled={editGroupLoading}
         />
       </Modal>
 
