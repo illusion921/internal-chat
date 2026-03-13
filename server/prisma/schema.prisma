@@ -46,6 +46,7 @@ model FriendGroup {
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   friendships Friendship[]
 
+  @@unique([userId, name]) // 同一用户不能创建同名分组
   @@index([userId])
   @@map("friend_groups")
 }
