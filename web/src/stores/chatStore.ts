@@ -12,7 +12,7 @@ interface ChatState {
   // 方法
   setConversations: (conversations: Conversation[]) => void;
   setCurrentConversation: (conversation: Conversation | null) => void;
-  setMessages: (messages: Message[]) => void;
+  setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   addMessage: (message: Message) => void;
   prependMessages: (messages: Message[]) => void;
   setHasMore: (hasMore: boolean) => void;
@@ -38,7 +38,10 @@ export const useChatStore = create<ChatState>((set) => ({
       hasMore: true,
     }),
 
-  setMessages: (messages) => set({ messages }),
+  setMessages: (messages) =>
+    set((state) => ({
+      messages: typeof messages === 'function' ? messages(state.messages) : messages,
+    })),
 
   addMessage: (message) =>
     set((state) => ({

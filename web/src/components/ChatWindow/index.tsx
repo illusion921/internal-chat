@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, Avatar, message, Upload, Image, Empty, Spin, Progress, Tag, Dropdown } from 'antd';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Input, Button, Avatar, message, Upload, Empty, Progress, Tag } from 'antd';
 import {
   SendOutlined,
   PictureOutlined,
@@ -8,9 +8,6 @@ import {
   TeamOutlined,
   MoreOutlined,
   InfoCircleOutlined,
-  DownloadOutlined,
-  SmileOutlined,
-  RollbackOutlined,
   SearchOutlined,
   CloseOutlined,
 } from '@ant-design/icons';
@@ -19,11 +16,11 @@ import { useChatStore } from '@stores/chatStore';
 import { messageApi, fileApi, groupApi } from '@services/api';
 import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom, onMessageRecall } from '@services/socket';
 import { formatTime } from '@utils/format';
-import type { Message } from '@types/index';
-import type { UploadFile } from 'antd/es/upload/interface';
+import type { Message } from '../../types';
 import GroupInfo from '@components/GroupInfo';
 import EmojiPicker from '@components/EmojiPicker';
 import MentionSelector from '@components/MentionSelector';
+import MessageItem from '@components/MessageItem';
 import './ChatWindow.css';
 
 const { TextArea } = Input;
@@ -49,7 +46,6 @@ const ChatWindow: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: { progress: number; filename: string } }>({});
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [mentionVisible, setMentionVisible] = useState(false);
-  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
   const [mentionIds, setMentionIds] = useState<string[]>([]);
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -135,7 +131,7 @@ const ChatWindow: React.FC = () => {
   };
 
   // 撤回消息
-  const handleRecallMessage = async (messageId: string) => {
+  const handleRecallMessage = useCallback(async (messageId: string) => {
     try {
       const response: any = await messageApi.recallMessage(messageId);
       if (response.code === 0) {
@@ -155,14 +151,7 @@ const ChatWindow: React.FC = () => {
     } catch (error) {
       message.error('撤回消息失败');
     }
-  };
-
-  // 检查是否可以撤回（2分钟内）
-  const canRecall = (msg: Message) => {
-    if (msg.senderId !== user?.id || msg.recalledAt) return false;
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-    return new Date(msg.createdAt) > twoMinutesAgo;
-  };
+  }, [setMessages]);
 
   // 搜索消息
   const handleSearchMessages = async () => {
@@ -403,152 +392,7 @@ const ChatWindow: React.FC = () => {
     return false;
   };
 
-  // 图片消息组件（带认证）
-  const ImageMessage: React.FC<{ fileId: string }> = ({ fileId }) => {
-    const [imageUrl, setImageUrl] = useState<string>('');
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-      const loadImage = async () => {
-        try {
-          const token = useAuthStore.getState().accessToken;
-          const response = await fetch(`/api/files/download/${fileId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-          if (response.ok) {
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            setImageUrl(url);
-          }
-        } catch (error) {
-          console.error('Failed to load image:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      loadImage();
-      
-      return () => {
-        if (imageUrl) {
-          URL.revokeObjectURL(imageUrl);
-        }
-      };
-    }, [fileId]);
-
-    if (loading) {
-      return <Spin />;
-    }
-
-    if (!imageUrl) {
-      return <span style={{ color: '#999' }}>图片加载失败</span>;
-    }
-
-    return (
-      <Image
-        src={imageUrl}
-        alt="图片"
-        style={{ maxWidth: 300, maxHeight: 300, borderRadius: 8 }}
-      />
-    );
-  };
-
-  // 渲染消息内容
-  const renderMessageContent = (msg: Message) => {
-    // 已撤回消息
-    if (msg.recalledAt) {
-      return (
-        <div className="message-recalled">
-          <RollbackOutlined style={{ marginRight: 4 }} />
-          {msg.senderId === user?.id ? '你撤回了一条消息' : '对方撤回了一条消息'}
-        </div>
-      );
-    }
-
-    switch (msg.msgType) {
-      case 'text':
-        // 解析 @提及
-        let content = msg.content || '';
-        const mentionRegex = /@([^\s@]+)/g;
-        const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
-        let match;
-
-        while ((match = mentionRegex.exec(content)) !== null) {
-          if (match.index > lastIndex) {
-            parts.push(content.slice(lastIndex, match.index));
-          }
-          parts.push(
-            <span key={match.index} className="mention-highlight">
-              {match[0]}
-            </span>
-          );
-          lastIndex = match.index + match[0].length;
-        }
-        if (lastIndex < content.length) {
-          parts.push(content.slice(lastIndex));
-        }
-
-        return <div className="message-text">{parts.length > 0 ? parts : content}</div>;
-      
-      case 'image':
-        return (
-          <div className="message-image">
-            {msg.file?.id && <ImageMessage fileId={msg.file.id} />}
-          </div>
-        );
-      
-      case 'file':
-        return (
-          <div className="message-file-wrapper">
-            <div className="message-file">
-              <FileOutlined style={{ fontSize: 24, marginRight: 8 }} />
-              <div className="file-info">
-                <div className="filename">{msg.file?.filename}</div>
-                <div className="filesize">
-                  {((msg.file?.filesize || 0) / 1024).toFixed(2)} KB
-                </div>
-              </div>
-            </div>
-            <div className="file-download-btn">
-              <Button
-                type="text"
-                icon={<DownloadOutlined style={{ fontSize: 18 }} />}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    const token = useAuthStore.getState().accessToken;
-                    const response = await fetch(`/api/files/download/${msg.file?.id}`, {
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                      },
-                    });
-                    if (!response.ok) throw new Error('下载失败');
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = msg.file?.filename || 'download';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                  } catch (error) {
-                    message.error('文件下载失败');
-                  }
-                }}
-              />
-            </div>
-          </div>
-        );
-      
-      default:
-        return null;
-    }
-  };
-
-  if (!currentConversation) {
+if (!currentConversation) {
     return (
       <div className="chat-empty">
         <Empty description="选择一个会话开始聊天" />
@@ -668,56 +512,14 @@ const ChatWindow: React.FC = () => {
           </div>
         )}
         
-        {messages.map((msg) => {
-          const isSelf = msg.senderId === user?.id;
-          const msgCanRecall = canRecall(msg);
-          
-          // 右键菜单项
-          const contextMenuItems = isSelf ? [
-            {
-              key: 'recall',
-              label: msgCanRecall ? '撤回消息' : '撤回消息 (超过2分钟)',
-              icon: <RollbackOutlined />,
-              disabled: !msgCanRecall,
-              onClick: msgCanRecall ? () => handleRecallMessage(msg.id) : undefined,
-            },
-          ] : [];
-          
-          return (
-            <Dropdown
-              key={msg.id}
-              menu={{ items: contextMenuItems }}
-              trigger={['contextMenu']}
-            >
-              <div
-                id={`msg-${msg.id}`}
-                className={`message-item ${isSelf ? 'self' : 'other'}`}
-              >
-                {/* 头像 */}
-                <Avatar
-                  size={36}
-                  src={isSelf ? user?.avatar : msg.sender.avatar}
-                  icon={<UserOutlined />}
-                />
-                
-                {/* 消息内容 */}
-                <div className="message-content">
-                  {!isSelf && currentConversation?.type === 'group' && (
-                    <div className="message-sender">
-                      {msg.sender.nickname || '未知用户'}
-                    </div>
-                  )}
-                  <div className="message-time">
-                    {formatTime(msg.createdAt)}
-                  </div>
-                  <div className={`message-bubble ${msg.msgType}`}>
-                    {renderMessageContent(msg)}
-                  </div>
-                </div>
-              </div>
-            </Dropdown>
-          );
-        })}
+        {messages.map((msg) => (
+          <MessageItem
+            key={msg.id}
+            msg={msg}
+            isGroup={currentConversation?.type === 'group'}
+            onRecall={handleRecallMessage}
+          />
+        ))}
         
         {/* 文件上传进度条 */}
         {Object.entries(uploadProgress).map(([id, { progress, filename }]) => (
