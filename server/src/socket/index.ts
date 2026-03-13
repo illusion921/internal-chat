@@ -12,7 +12,19 @@ interface UserSocket {
 // 存储用户连接
 const userSockets = new Map<string, Set<string>>();
 
+// 存储 io 实例
+let ioInstance: SocketIOServer | null = null;
+
+export function getSocketIO(): SocketIOServer {
+  if (!ioInstance) {
+    throw new Error('Socket.IO not initialized');
+  }
+  return ioInstance;
+}
+
 export function setupSocket(io: SocketIOServer) {
+  ioInstance = io;
+
   // 认证中间件
   io.use(async (socket, next) => {
     try {
@@ -177,11 +189,10 @@ export function setupSocket(io: SocketIOServer) {
 // 处理消息发送
 async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) {
   const userId = socket.data.userId;
-  const { conversationId, conversationType, msgType, content, fileId } = data;
+  const { conversationId, conversationType, msgType, content, fileId, mentionIds } = data;
 
   // 权限验证
   if (conversationType === 'private') {
-    // 私聊：检查是否是好友
     const parts = conversationId.split('_');
     const targetUserId = parts[1] === userId ? parts[2] : parts[1];
     
@@ -201,7 +212,6 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
       });
     }
   } else if (conversationType === 'group') {
-    // 群聊：检查是否是群成员
     const groupId = conversationId.replace('group_', '');
     
     const membership = await prisma.groupMember.findUnique({
@@ -216,6 +226,9 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
     }
   }
 
+  // 序列化 mentionIds
+  const mentionIdsJson = mentionIds && mentionIds.length > 0 ? JSON.stringify(mentionIds) : null;
+
   // 保存消息到数据库
   const message = await prisma.message.create({
     data: {
@@ -225,6 +238,7 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
       content,
       msgType,
       fileId,
+      mentionIds: mentionIdsJson,
     },
     include: {
       sender: {
@@ -236,6 +250,12 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
     },
   });
 
+  // 解析 mentionIds 用于响应
+  const parsedMessage = {
+    ...message,
+    mentionIds: mentionIds || [],
+  };
+
   // 发送成功回执
   socket.emit('message:sent', {
     tempId: data.tempId,
@@ -244,26 +264,20 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
   });
 
   if (conversationType === 'private') {
-    // 私聊：发送给对方
     const parts = conversationId.split('_');
     const targetUserId = parts[1] === userId ? parts[2] : parts[1];
 
-    // 检查对方是否在线
     const isOnline = await redisService.isUserOnline(targetUserId);
 
     if (isOnline) {
-      // 在线：直接推送
-      io.to(`user:${targetUserId}`).emit('message:new', message);
+      io.to(`user:${targetUserId}`).emit('message:new', parsedMessage);
     } else {
-      // 离线：存储到离线消息队列
-      await redisService.addOfflineMessage(targetUserId, message);
+      await redisService.addOfflineMessage(targetUserId, parsedMessage);
     }
 
-    // 增加未读数
     await redisService.incrUnread(targetUserId, conversationId);
 
   } else if (conversationType === 'group') {
-    // 群聊：发送给所有群成员
     const groupId = conversationId.replace('group_', '');
 
     const members = await prisma.groupMember.findMany({
@@ -271,10 +285,16 @@ async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) 
       select: { userId: true },
     });
 
-    // 推送给所有在线成员
     for (const member of members) {
       if (member.userId !== userId) {
-        io.to(`user:${member.userId}`).emit('message:new', message);
+        // 检查是否被 @
+        const isMentioned = mentionIds && mentionIds.includes(member.userId);
+        
+        io.to(`user:${member.userId}`).emit('message:new', {
+          ...parsedMessage,
+          mentioned: isMentioned,
+        });
+        
         await redisService.incrUnread(member.userId, conversationId);
       }
     }

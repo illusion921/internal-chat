@@ -124,6 +124,7 @@ export function sendMessage(data: {
   content?: string;
   fileId?: string;
   tempId?: string;
+  mentionIds?: string[];
 }) {
   if (!socket?.connected) {
     console.error('Socket not connected');
@@ -136,6 +137,20 @@ export function sendMessage(data: {
   });
 
   return true;
+}
+
+// 监听消息撤回事件
+export function onMessageRecall(callback: (data: { messageId: string; conversationId: string; recalledAt: string }) => void) {
+  if (!socket) {
+    console.error('Socket not initialized');
+    return null;
+  }
+
+  socket.on('message:recall', callback);
+  
+  return () => {
+    socket?.off('message:recall', callback);
+  };
 }
 
 export function sendTypingStart(conversationId: string, conversationType: 'private' | 'group') {

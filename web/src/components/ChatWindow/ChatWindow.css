@@ -457,3 +457,100 @@
   background: #06ad56;
   border-color: #06ad56;
 }
+/* 表情选择器 */
+.emoji-picker {
+  width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+}
+
+.emoji-item {
+  font-size: 20px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: center;
+  transition: background 0.2s;
+}
+
+.emoji-item:hover {
+  background: #f0f0f0;
+}
+
+.emoji-trigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 18px;
+  color: #666;
+}
+
+.emoji-trigger:hover {
+  color: #07c160;
+}
+
+/* @成员选择器 */
+.mention-selector {
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  width: 200px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.mention-search {
+  padding: 0;
+}
+
+.mention-list {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.mention-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.mention-item:hover,
+.mention-item.selected {
+  background: #f0f0f0;
+}
+
+.mention-name {
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+.mention-empty {
+  text-align: center;
+  color: #999;
+  padding: 16px;
+}
+
+/* 消息撤回样式 */
+.message-recalled {
+  color: #999;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* @提及高亮 */
+.mention-highlight {
+  color: #07c160;
+  font-weight: 500;
+}

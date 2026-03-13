@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Input, Button, Avatar, message, Upload, Image, Empty, Spin, Progress, Tag } from 'antd';
+import { Input, Button, Avatar, message, Upload, Image, Empty, Spin, Progress, Tag, Dropdown } from 'antd';
 import {
   SendOutlined,
   PictureOutlined,
@@ -9,15 +9,19 @@ import {
   MoreOutlined,
   InfoCircleOutlined,
   DownloadOutlined,
+  SmileOutlined,
+  RollbackOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import { messageApi, fileApi, groupApi } from '@services/api';
-import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom } from '@services/socket';
+import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom, onMessageRecall } from '@services/socket';
 import { formatTime } from '@utils/format';
 import type { Message } from '@types/index';
 import type { UploadFile } from 'antd/es/upload/interface';
 import GroupInfo from '@components/GroupInfo';
+import EmojiPicker from '@components/EmojiPicker';
+import MentionSelector from '@components/MentionSelector';
 import './ChatWindow.css';
 
 const { TextArea } = Input;
@@ -42,8 +46,12 @@ const ChatWindow: React.FC = () => {
   const [groupInfoVisible, setGroupInfoVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: { progress: number; filename: string } }>({});
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [mentionVisible, setMentionVisible] = useState(false);
+  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<any>(null);
 
   // 加载消息
   useEffect(() => {
@@ -72,6 +80,23 @@ const ChatWindow: React.FC = () => {
     }
   }, [currentConversation?.id, currentConversation?.type]);
 
+  // 监听消息撤回事件
+  useEffect(() => {
+    const unsubscribe = onMessageRecall((data) => {
+      setMessages((prev: Message[]) =>
+        prev.map((msg: Message) =>
+          msg.id === data.messageId
+            ? { ...msg, recalledAt: data.recalledAt }
+            : msg
+        )
+      );
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
   const loadGroupMembers = async () => {
     if (!currentConversation || currentConversation.type !== 'group') return;
     try {
@@ -82,6 +107,42 @@ const ChatWindow: React.FC = () => {
     } catch (error) {
       console.error('Failed to load group members:', error);
     }
+  };
+
+  // 表情选择
+  const handleEmojiSelect = (emoji: string) => {
+    setInputValue((prev) => prev + emoji);
+    textAreaRef.current?.focus();
+  };
+
+  // @成员选择
+  const handleMentionSelect = (member: any) => {
+    const name = member.nickname || member.user?.nickname || '未知用户';
+    setInputValue((prev) => prev + `@${name} `);
+    setMentionIds((prev) => [...prev, member.userId]);
+    setMentionVisible(false);
+    textAreaRef.current?.focus();
+  };
+
+  // 撤回消息
+  const handleRecallMessage = async (messageId: string) => {
+    try {
+      const response: any = await messageApi.recallMessage(messageId);
+      if (response.code === 0) {
+        message.success('消息已撤回');
+      } else {
+        message.error(response.message || '撤回失败');
+      }
+    } catch (error) {
+      message.error('撤回消息失败');
+    }
+  };
+
+  // 检查是否可以撤回（2分钟内）
+  const canRecall = (msg: Message) => {
+    if (msg.senderId !== user?.id || msg.recalledAt) return false;
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    return new Date(msg.createdAt) > twoMinutesAgo;
   };
 
   const loadMessages = async (page: number) => {
@@ -140,6 +201,7 @@ const ChatWindow: React.FC = () => {
       msgType: 'text' as const,
       content: inputValue.trim(),
       tempId,
+      mentionIds: currentConversation.type === 'group' ? mentionIds : undefined,
     };
 
     // 先添加到本地
@@ -158,6 +220,7 @@ const ChatWindow: React.FC = () => {
     addMessage(optimisticMessage);
     scrollToBottom();
     setInputValue('');
+    setMentionIds([]);
 
     // 发送到服务器
     sendMessage(messageData);
@@ -330,9 +393,41 @@ const ChatWindow: React.FC = () => {
 
   // 渲染消息内容
   const renderMessageContent = (msg: Message) => {
+    // 已撤回消息
+    if (msg.recalledAt) {
+      return (
+        <div className="message-recalled">
+          <RollbackOutlined style={{ marginRight: 4 }} />
+          {msg.senderId === user?.id ? '你撤回了一条消息' : '对方撤回了一条消息'}
+        </div>
+      );
+    }
+
     switch (msg.msgType) {
       case 'text':
-        return <div className="message-text">{msg.content}</div>;
+        // 解析 @提及
+        let content = msg.content || '';
+        const mentionRegex = /@([^\s@]+)/g;
+        const parts: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match;
+
+        while ((match = mentionRegex.exec(content)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(content.slice(lastIndex, match.index));
+          }
+          parts.push(
+            <span key={match.index} className="mention-highlight">
+              {match[0]}
+            </span>
+          );
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < content.length) {
+          parts.push(content.slice(lastIndex));
+        }
+
+        return <div className="message-text">{parts.length > 0 ? parts : content}</div>;
       
       case 'image':
         return (
@@ -443,33 +538,50 @@ const ChatWindow: React.FC = () => {
         
         {messages.map((msg) => {
           const isSelf = msg.senderId === user?.id;
+          const msgCanRecall = canRecall(msg);
+          
+          const contextMenuItems = msgCanRecall ? [
+            {
+              key: 'recall',
+              label: '撤回消息',
+              icon: <RollbackOutlined />,
+              onClick: () => handleRecallMessage(msg.id),
+            },
+          ] : [];
+          
           return (
-            <div
+            <Dropdown
               key={msg.id}
-              className={`message-item ${isSelf ? 'self' : 'other'}`}
+              menu={{ items: contextMenuItems }}
+              trigger={['contextMenu']}
+              disabled={contextMenuItems.length === 0}
             >
-              {/* 头像 */}
-              <Avatar
-                size={36}
-                src={isSelf ? user?.avatar : msg.sender.avatar}
-                icon={<UserOutlined />}
-              />
-              
-              {/* 消息内容 */}
-              <div className="message-content">
-                {!isSelf && currentConversation?.type === 'group' && (
-                  <div className="message-sender">
-                    {msg.sender.nickname || '未知用户'}
+              <div
+                className={`message-item ${isSelf ? 'self' : 'other'}`}
+              >
+                {/* 头像 */}
+                <Avatar
+                  size={36}
+                  src={isSelf ? user?.avatar : msg.sender.avatar}
+                  icon={<UserOutlined />}
+                />
+                
+                {/* 消息内容 */}
+                <div className="message-content">
+                  {!isSelf && currentConversation?.type === 'group' && (
+                    <div className="message-sender">
+                      {msg.sender.nickname || '未知用户'}
+                    </div>
+                  )}
+                  <div className="message-time">
+                    {formatTime(msg.createdAt)}
                   </div>
-                )}
-                <div className="message-time">
-                  {formatTime(msg.createdAt)}
-                </div>
-                <div className={`message-bubble ${msg.msgType}`}>
-                  {renderMessageContent(msg)}
+                  <div className={`message-bubble ${msg.msgType}`}>
+                    {renderMessageContent(msg)}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Dropdown>
           );
         })}
         
@@ -503,6 +615,7 @@ const ChatWindow: React.FC = () => {
       {/* 输入区域 */}
       <div className="input-area">
         <div className="input-toolbar">
+          <EmojiPicker onEmojiSelect={handleEmojiSelect} />
           <Upload
             beforeUpload={handleSendImage}
             accept="image/*"
@@ -516,12 +629,20 @@ const ChatWindow: React.FC = () => {
           >
             <Button type="text" icon={<FileOutlined />} />
           </Upload>
+          {currentConversation?.type === 'group' && (
+            <Button
+              type="text"
+              icon={<UserOutlined />}
+              onClick={() => setMentionVisible(!mentionVisible)}
+            />
+          )}
         </div>
-        <div className="input-main">
+        <div className="input-main" style={{ position: 'relative' }}>
           <TextArea
+            ref={textAreaRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="输入消息..."
+            placeholder={currentConversation?.type === 'group' ? '输入消息，@ 提及成员...' : '输入消息...'}
             style={{ flex: 1, resize: 'none' }}
             onPressEnter={(e) => {
               if (!e.shiftKey) {
@@ -538,6 +659,17 @@ const ChatWindow: React.FC = () => {
           >
             发送
           </Button>
+          
+          {/* @成员选择器 */}
+          {currentConversation?.type === 'group' && (
+            <MentionSelector
+              members={groupMembers}
+              visible={mentionVisible}
+              position={{ top: -200, left: 0 }}
+              onSelect={handleMentionSelect}
+              onClose={() => setMentionVisible(false)}
+            />
+          )}
         </div>
       </div>
       </div>

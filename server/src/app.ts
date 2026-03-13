@@ -10,6 +10,7 @@ import { redis } from './services/redis.js';
 import { authRoutes } from './modules/auth/routes.js';
 import { userRoutes } from './modules/user/routes.js';
 import { friendRoutes } from './modules/friend/routes.js';
+import { friendGroupRoutes } from './modules/friend/groups.js';
 import { groupRoutes } from './modules/group/routes.js';
 import { messageRoutes } from './modules/message/routes.js';
 import { fileRoutes } from './modules/file/routes.js';
@@ -61,6 +62,7 @@ fastify.get('/health', async () => ({
 await fastify.register(authRoutes, { prefix: '/api/auth' });
 await fastify.register(userRoutes, { prefix: '/api/users' });
 await fastify.register(friendRoutes, { prefix: '/api/friends' });
+await fastify.register(friendGroupRoutes, { prefix: '/api/friends/groups' });
 await fastify.register(groupRoutes, { prefix: '/api/groups' });
 await fastify.register(messageRoutes, { prefix: '/api/conversations' });
 await fastify.register(fileRoutes, { prefix: '/api/files' });

@@ -29,8 +29,25 @@ model User {
   groupMemberships      GroupMember[]
   sentMessages          Message[]    @relation("MessageSender")
   uploadedFiles         File[]       @relation("FileUploader")
+  friendGroups          FriendGroup[]
 
   @@map("users")
+}
+
+// 好友分组表
+model FriendGroup {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 关系
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  friendships Friendship[]
+
+  @@index([userId])
+  @@map("friend_groups")
 }
 
 // 好友关系表
@@ -40,12 +57,14 @@ model Friendship {
   friendId   String   @map("friend_id")
   status     String   @default("pending") // pending, accepted, rejected
   remark     String?  @db.Text
+  groupId    String?  @map("group_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   // 关系
-  user       User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
-  friend     User     @relation("ReceivedFriends", fields: [friendId], references: [id], onDelete: Cascade)
+  user       User        @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend     User        @relation("ReceivedFriends", fields: [friendId], references: [id], onDelete: Cascade)
+  group      FriendGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@unique([userId, friendId])
   @@map("friendships")
@@ -94,6 +113,8 @@ model Message {
   content          String?  @db.Text
   msgType          String   @default("text") @map("msg_type") // text, image, file
   fileId           String?  @map("file_id")
+  mentionIds       String?  @map("mention_ids") // JSON 数组，@的用户ID列表
+  recalledAt       DateTime? @map("recalled_at") // 撤回时间
   createdAt        DateTime @default(now()) @map("created_at")
 
   // 关系
@@ -102,6 +123,7 @@ model Message {
 
   @@index([conversationId])
   @@index([createdAt])
+  @@index([content]) // 用于消息搜索
   @@map("messages")
 }
 
