@@ -11,6 +11,8 @@ import {
   DownloadOutlined,
   SmileOutlined,
   RollbackOutlined,
+  SearchOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
@@ -49,6 +51,10 @@ const ChatWindow: React.FC = () => {
   const [mentionVisible, setMentionVisible] = useState(false);
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
   const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textAreaRef = useRef<any>(null);
@@ -143,6 +149,50 @@ const ChatWindow: React.FC = () => {
     if (msg.senderId !== user?.id || msg.recalledAt) return false;
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     return new Date(msg.createdAt) > twoMinutesAgo;
+  };
+
+  // 搜索消息
+  const handleSearchMessages = async () => {
+    if (!searchKeyword.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response: any = await messageApi.search(
+        searchKeyword.trim(),
+        currentConversation?.id
+      );
+      if (response.code === 0) {
+        setSearchResults(response.data.list);
+      }
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // 跳转到消息
+  const handleJumpToMessage = (msg: Message) => {
+    // 关闭搜索，滚动到消息
+    setSearchVisible(false);
+    setSearchKeyword('');
+    setSearchResults([]);
+    
+    // 如果消息在当前列表中，滚动到该消息
+    const msgElement = document.getElementById(`msg-${msg.id}`);
+    if (msgElement) {
+      msgElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      msgElement.classList.add('message-highlight');
+      setTimeout(() => {
+        msgElement.classList.remove('message-highlight');
+      }, 2000);
+    } else {
+      // 消息不在当前列表，需要加载
+      message.info('消息不在当前页面，请向上加载更多');
+    }
   };
 
   const loadMessages = async (page: number) => {
@@ -517,6 +567,11 @@ const ChatWindow: React.FC = () => {
             </div>
           </div>
           <Button type="text" icon={<MoreOutlined />} />
+          <Button
+            type="text"
+            icon={<SearchOutlined />}
+            onClick={() => setSearchVisible(!searchVisible)}
+          />
           {currentConversation.type === 'group' && (
             <Button
               type="text"
@@ -525,6 +580,70 @@ const ChatWindow: React.FC = () => {
             />
           )}
         </div>
+
+        {/* 搜索栏 */}
+        {searchVisible && (
+          <div className="search-bar">
+            <Input
+              placeholder="搜索消息..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onPressEnter={handleSearchMessages}
+              prefix={<SearchOutlined />}
+              suffix={
+                searchKeyword && (
+                  <CloseOutlined
+                    onClick={() => {
+                      setSearchKeyword('');
+                      setSearchResults([]);
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  />
+                )
+              }
+              style={{ width: '100%' }}
+            />
+            <Button type="primary" onClick={handleSearchMessages} loading={searchLoading}>
+              搜索
+            </Button>
+            <Button type="text" onClick={() => {
+              setSearchVisible(false);
+              setSearchKeyword('');
+              setSearchResults([]);
+            }}>
+              <CloseOutlined />
+            </Button>
+          </div>
+        )}
+
+        {/* 搜索结果 */}
+        {searchVisible && searchResults.length > 0 && (
+          <div className="search-results-panel">
+            <div className="search-results-header">
+              搜索结果 ({searchResults.length})
+            </div>
+            <div className="search-results-list">
+              {searchResults.map((msg) => (
+                <div
+                  key={msg.id}
+                  className="search-result-item"
+                  onClick={() => handleJumpToMessage(msg)}
+                >
+                  <div className="search-result-sender">
+                    {msg.sender.nickname}
+                  </div>
+                  <div className="search-result-content">
+                    {msg.content?.substring(0, 100)}
+                    {msg.content && msg.content.length > 100 && '...'}
+                  </div>
+                  <div className="search-result-time">
+                    {formatTime(msg.createdAt)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* 消息列表 */}
       <div className="messages-container" ref={messagesContainerRef}>
@@ -557,6 +676,7 @@ const ChatWindow: React.FC = () => {
               disabled={contextMenuItems.length === 0}
             >
               <div
+                id={`msg-${msg.id}`}
                 className={`message-item ${isSelf ? 'self' : 'other'}`}
               >
                 {/* 头像 */}
