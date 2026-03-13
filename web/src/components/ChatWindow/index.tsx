@@ -89,19 +89,18 @@ const ChatWindow: React.FC = () => {
   // 监听消息撤回事件
   useEffect(() => {
     const unsubscribe = onMessageRecall((data) => {
-      setMessages((prev: Message[]) =>
-        prev.map((msg: Message) =>
-          msg.id === data.messageId
-            ? { ...msg, recalledAt: data.recalledAt }
-            : msg
-        )
+      const updatedMessages = messages.map((msg) =>
+        msg.id === data.messageId
+          ? { ...msg, recalledAt: data.recalledAt }
+          : msg
       );
+      setMessages(updatedMessages);
     });
 
     return () => {
       unsubscribe?.();
     };
-  }, []);
+  }, [messages]);
 
   const loadGroupMembers = async () => {
     if (!currentConversation || currentConversation.type !== 'group') return;
@@ -138,13 +137,12 @@ const ChatWindow: React.FC = () => {
         message.success('消息已撤回');
         // 更新本地消息状态
         const now = new Date().toISOString();
-        setMessages((prev: Message[]) =>
-          prev.map((msg: Message) =>
-            msg.id === messageId
-              ? { ...msg, recalledAt: now }
-              : msg
-          )
+        const updatedMessages = messages.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, recalledAt: now }
+            : msg
         );
+        setMessages(updatedMessages);
       } else {
         message.error(response.message || '撤回失败');
       }
