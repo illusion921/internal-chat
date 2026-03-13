@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Input, Button, Avatar, message, Upload, Image, Empty, Spin, Progress, Tag, Dropdown } from 'antd';
 import {
   SendOutlined,
@@ -92,8 +92,9 @@ const ChatWindow: React.FC = () => {
   // 监听消息撤回事件
   useEffect(() => {
     const unsubscribe = onMessageRecall((data) => {
-      setMessages((prev) =>
-        prev.map((msg) =>
+      // 使用函数式更新，避免依赖 messages
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
           msg.id === data.messageId
             ? { ...msg, recalledAt: data.recalledAt }
             : msg
@@ -104,7 +105,7 @@ const ChatWindow: React.FC = () => {
     return () => {
       unsubscribe?.();
     };
-  }, []); // 移除 messages 依赖，使用函数式更新
+  }, [setMessages]); // 只依赖 setMessages（稳定的）
 
   const loadGroupMembers = async () => {
     if (!currentConversation || currentConversation.type !== 'group') return;
@@ -139,10 +140,10 @@ const ChatWindow: React.FC = () => {
       const response: any = await messageApi.recallMessage(messageId);
       if (response.code === 0) {
         message.success('消息已撤回');
-        // 更新本地消息状态
+        // 使用函数式更新，避免依赖 messages
         const now = new Date().toISOString();
-        setMessages((prev) =>
-          prev.map((msg) =>
+        setMessages((prevMessages) =>
+          prevMessages.map((msg) =>
             msg.id === messageId
               ? { ...msg, recalledAt: now }
               : msg
@@ -157,11 +158,11 @@ const ChatWindow: React.FC = () => {
   };
 
   // 检查是否可以撤回（2分钟内）
-  const canRecall = useCallback((msg: Message) => {
+  const canRecall = (msg: Message) => {
     if (msg.senderId !== user?.id || msg.recalledAt) return false;
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     return new Date(msg.createdAt) > twoMinutesAgo;
-  }, [user?.id]);
+  };
 
   // 搜索消息
   const handleSearchMessages = async () => {
