@@ -84,6 +84,9 @@ const ChatWindow: React.FC = () => {
     } else {
       setGroupMembers([]);
     }
+    // 切换会话时清空输入框和@列表
+    setInputValue('');
+    setMentionIds([]);
   }, [currentConversation?.id, currentConversation?.type]);
 
   // 监听消息撤回事件
