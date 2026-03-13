@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu } from 'antd';
+import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu, message, Spin } from 'antd';
 import {
   MessageOutlined,
   TeamOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
@@ -26,6 +27,7 @@ const Main: React.FC = () => {
   
   const [activeTab, setActiveTab] = useState<'chat' | 'contact'>('chat');
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     connectSocket();
@@ -47,6 +49,20 @@ const Main: React.FC = () => {
       if (requestsRes.code === 0) setFriendRequests(requestsRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await loadData();
+      message.success('刷新成功');
+    } catch (error) {
+      message.error('刷新失败');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -109,6 +125,15 @@ const Main: React.FC = () => {
         </div>
 
         <div className="nav-footer">
+          <div 
+            className={`nav-item ${refreshing ? 'disabled' : ''}`} 
+            onClick={handleRefresh}
+            title="刷新数据"
+          >
+            <Spin spinning={refreshing} size="small">
+              <ReloadOutlined style={{ fontSize: 20 }} />
+            </Spin>
+          </div>
           <div className="nav-item" onClick={() => setSettingsVisible(true)}>
             <SettingOutlined style={{ fontSize: 20 }} />
           </div>

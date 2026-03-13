@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  internal-chat:
+    build: .
+    image: internal-chat-server:latest
+    container_name: internal-chat-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/internal_chat?schema=public
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-internal-chat-secret-change-me}
+      - JWT_EXPIRES_IN=7d
+      - UPLOAD_DIR=/app/uploads
+      - MAX_FILE_SIZE=524288000
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - internal-chat-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: internal-chat-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: internal_chat
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d internal_chat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal-chat-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: internal-chat-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal-chat-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  internal-chat-network:
+    driver: bridge

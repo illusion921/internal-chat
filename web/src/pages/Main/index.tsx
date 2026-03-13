@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu } from 'antd';
+import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu, message, Spin } from 'antd';
 import {
   MessageOutlined,
   TeamOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
+  DashboardOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
@@ -15,6 +17,7 @@ import { disconnectSocket, connectSocket } from '@services/socket';
 import ContactList from '@components/ContactList';
 import ChatWindow from '@components/ChatWindow';
 import Settings from '@pages/Settings';
+import Admin from '@pages/Admin';
 import './Main.css';
 
 const { Sider, Content } = Layout;
@@ -24,8 +27,12 @@ const Main: React.FC = () => {
   const { setConversations } = useChatStore();
   const { setFriends, setGroups, setFriendRequests, friendRequests } = useContactStore();
   
-  const [activeTab, setActiveTab] = useState<'chat' | 'contact'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'contact' | 'admin'>('chat');
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // 检查是否是管理员
+  const isAdmin = user?.username === 'admin';
 
   useEffect(() => {
     connectSocket();
@@ -47,6 +54,20 @@ const Main: React.FC = () => {
       if (requestsRes.code === 0) setFriendRequests(requestsRes.data);
     } catch (error) {
       console.error('Failed to load data:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing) return;
+    
+    setRefreshing(true);
+    try {
+      await loadData();
+      message.success('刷新成功');
+    } catch (error) {
+      message.error('刷新失败');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -106,9 +127,26 @@ const Main: React.FC = () => {
               <TeamOutlined style={{ fontSize: 22 }} />
             </Badge>
           </div>
+          {isAdmin && (
+            <div
+              className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+              onClick={() => setActiveTab('admin')}
+            >
+              <DashboardOutlined style={{ fontSize: 22 }} />
+            </div>
+          )}
         </div>
 
         <div className="nav-footer">
+          <div 
+            className={`nav-item ${refreshing ? 'disabled' : ''}`} 
+            onClick={handleRefresh}
+            title="刷新数据"
+          >
+            <Spin spinning={refreshing} size="small">
+              <ReloadOutlined style={{ fontSize: 20 }} />
+            </Spin>
+          </div>
           <div className="nav-item" onClick={() => setSettingsVisible(true)}>
             <SettingOutlined style={{ fontSize: 20 }} />
           </div>
@@ -125,9 +163,9 @@ const Main: React.FC = () => {
         </div>
       </Sider>
 
-      {/* 聊天窗口 */}
+      {/* 聊天窗口或管理页面 */}
       <Content className="chat-content">
-        <ChatWindow />
+        {activeTab === 'admin' ? <Admin /> : <ChatWindow />}
       </Content>
 
       <Settings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />

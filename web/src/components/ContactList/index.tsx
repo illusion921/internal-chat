@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { List, Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message } from 'antd';
 import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined } from '@ant-design/icons';
+import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import { useContactStore } from '@stores/index';
 import { friendApi, groupApi, userApi } from '@services/api';
@@ -12,6 +13,7 @@ interface ContactListProps {
 }
 
 const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
+  const { user } = useAuthStore();
   const { conversations, setCurrentConversation, currentConversation } = useChatStore();
   const { friends, groups, friendRequests, setFriends, setFriendRequests, setGroups } = useContactStore();
   
@@ -20,6 +22,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [addFriendVisible, setAddFriendVisible] = useState(false);
   const [createGroupVisible, setCreateGroupVisible] = useState(false);
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
   const [addGroupForm] = Form.useForm();
 
   // 搜索用户
@@ -74,6 +77,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
 
   // 创建群组
   const handleCreateGroup = async (values: { name: string; memberIds: string[] }) => {
+    if (createGroupLoading) return; // 防止重复提交
+    
+    setCreateGroupLoading(true);
     try {
       const response: any = await groupApi.create(values.name, values.memberIds);
       if (response.code === 0) {
@@ -85,6 +91,8 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       }
     } catch (error) {
       message.error('创建失败');
+    } finally {
+      setCreateGroupLoading(false);
     }
   };
 
@@ -158,8 +166,10 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 key={friend.id}
                 className="contact-item"
                 onClick={() => {
+                  // 生成正确的私聊会话 ID（两个用户 ID 排序后拼接）
+                  const conversationId = `private_${[user?.id, friend.friendId].sort().join('_')}`;
                   handleSelectConversation({
-                    id: `private_${[friend.friendId].sort().join('_')}`,
+                    id: conversationId,
                     type: 'private',
                     target: {
                       id: friend.friendId,
@@ -294,6 +304,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         onOk={() => addGroupForm.submit()}
         okText="创建"
         cancelText="取消"
+        confirmLoading={createGroupLoading}
         centered
       >
         <Form form={addGroupForm} layout="vertical" onFinish={handleCreateGroup}>

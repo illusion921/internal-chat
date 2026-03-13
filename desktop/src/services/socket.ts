@@ -74,6 +74,19 @@ export function connectSocket() {
     setMessages(updatedMessages);
   });
 
+  // 消息发送失败
+  socket.on('message:error', (data: { tempId: string; error: string }) => {
+    console.error('Message error:', data);
+    // 移除乐观更新的消息
+    const { messages, setMessages } = useChatStore.getState();
+    const filteredMessages = messages.filter((m) => (m as any).tempId !== data.tempId);
+    setMessages(filteredMessages);
+    // 显示错误提示
+    import('antd').then(({ message }) => {
+      message.error(data.error);
+    });
+  });
+
   // 对方正在输入
   socket.on('typing:start', (data: { conversationId: string; userId: string }) => {
     console.log('User typing:', data);

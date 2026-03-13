@@ -448,13 +448,14 @@ const ChatWindow: React.FC = () => {
               key={msg.id}
               className={`message-item ${isSelf ? 'self' : 'other'}`}
             >
-              {!isSelf && (
-                <Avatar
-                  size={36}
-                  src={msg.sender.avatar}
-                  icon={<UserOutlined />}
-                />
-              )}
+              {/* 头像 */}
+              <Avatar
+                size={36}
+                src={isSelf ? user?.avatar : msg.sender.avatar}
+                icon={<UserOutlined />}
+              />
+              
+              {/* 消息内容 */}
               <div className="message-content">
                 {!isSelf && currentConversation?.type === 'group' && (
                   <div className="message-sender">
@@ -468,13 +469,6 @@ const ChatWindow: React.FC = () => {
                   {renderMessageContent(msg)}
                 </div>
               </div>
-              {isSelf && (
-                <Avatar
-                  size={36}
-                  src={user?.avatar}
-                  icon={<UserOutlined />}
-                />
-              )}
             </div>
           );
         })}
@@ -546,7 +540,6 @@ const ChatWindow: React.FC = () => {
           </Button>
         </div>
       </div>
-
       </div>
 
       {/* 群成员列表 - 右侧边栏 */}
@@ -576,14 +569,14 @@ const ChatWindow: React.FC = () => {
         </div>
       )}
 
-    {/* 群组信息弹窗 */}
-    <GroupInfo
-      visible={groupInfoVisible}
-      groupId={currentConversation?.type === 'group' ? currentConversation.target.id : null}
-      currentUserId={user?.id || ''}
-      onClose={() => setGroupInfoVisible(false)}
-    />
-  </div>
+      {/* 群组信息弹窗 */}
+      <GroupInfo
+        visible={groupInfoVisible}
+        groupId={currentConversation?.type === 'group' ? currentConversation.target.id : null}
+        currentUserId={user?.id || ''}
+        onClose={() => setGroupInfoVisible(false)}
+      />
+    </div>
   );
 };
 

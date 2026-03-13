@@ -45,11 +45,18 @@ export function setupSocket(io: SocketIOServer) {
     // 设置用户在线
     await redisService.setUserOnline(userId, socket.id);
 
-    // 更新数据库状态
-    await prisma.user.update({
-      where: { id: userId },
-      data: { status: 'online', lastSeenAt: new Date() },
-    });
+    // 更新数据库状态（如果用户存在）
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: 'online', lastSeenAt: new Date() },
+      });
+    } catch (error) {
+      // 用户不存在，断开连接
+      console.warn(`User ${userId} not found, disconnecting socket`);
+      socket.disconnect();
+      return;
+    }
 
     // 推送离线消息
     const offlineMessages = await redisService.getAndClearOfflineMessages(userId);
@@ -171,6 +178,43 @@ export function setupSocket(io: SocketIOServer) {
 async function handleMessageSend(io: SocketIOServer, socket: Socket, data: any) {
   const userId = socket.data.userId;
   const { conversationId, conversationType, msgType, content, fileId } = data;
+
+  // 权限验证
+  if (conversationType === 'private') {
+    // 私聊：检查是否是好友
+    const parts = conversationId.split('_');
+    const targetUserId = parts[1] === userId ? parts[2] : parts[1];
+    
+    const friendship = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { userId, friendId: targetUserId, status: 'accepted' },
+          { userId: targetUserId, friendId: userId, status: 'accepted' },
+        ],
+      },
+    });
+
+    if (!friendship) {
+      return socket.emit('message:error', {
+        tempId: data.tempId,
+        error: '你们已经不是好友，无法发送消息',
+      });
+    }
+  } else if (conversationType === 'group') {
+    // 群聊：检查是否是群成员
+    const groupId = conversationId.replace('group_', '');
+    
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+
+    if (!membership) {
+      return socket.emit('message:error', {
+        tempId: data.tempId,
+        error: '你已经不在该群组中，无法发送消息',
+      });
+    }
+  }
 
   // 保存消息到数据库
   const message = await prisma.message.create({

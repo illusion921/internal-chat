@@ -9,9 +9,12 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:pg": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:setup-pg": "bash scripts/setup-postgres.sh",
+    "db:migrate-data": "bash scripts/migrate-sqlite-to-pg.sh",
     "lint": "eslint src --ext .ts",
     "test": "vitest"
   },

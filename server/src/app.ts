@@ -13,6 +13,7 @@ import { friendRoutes } from './modules/friend/routes.js';
 import { groupRoutes } from './modules/group/routes.js';
 import { messageRoutes } from './modules/message/routes.js';
 import { fileRoutes } from './modules/file/routes.js';
+import { adminRoutes } from './modules/admin/routes.js';
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { setupSocket } from './socket/index.js';
@@ -63,6 +64,7 @@ await fastify.register(friendRoutes, { prefix: '/api/friends' });
 await fastify.register(groupRoutes, { prefix: '/api/groups' });
 await fastify.register(messageRoutes, { prefix: '/api/conversations' });
 await fastify.register(fileRoutes, { prefix: '/api/files' });
+await fastify.register(adminRoutes, { prefix: '/api/admin' });
 
 // 错误处理
 fastify.setErrorHandler(errorHandler);

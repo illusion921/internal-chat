@@ -39,22 +39,28 @@ export async function friendRoutes(fastify: FastifyInstance) {
       },
     });
 
-    // 整理好友数据
-    const friends = friendships.map((f) => {
+    // 整理好友数据 - 使用 Map 去重
+    const friendMap = new Map<string, any>();
+    
+    friendships.forEach((f) => {
       const isRequester = f.userId === userId;
       const friend = isRequester ? f.friend : f.user;
-      const remark = f.remark;
-
-      return {
-        id: f.id,
-        friendId: friend.id,
-        nickname: friend.nickname,
-        avatar: friend.avatar,
-        signature: friend.signature,
-        status: friend.status,
-        remark,
-      };
+      
+      // 按 friendId 去重
+      if (!friendMap.has(friend.id)) {
+        friendMap.set(friend.id, {
+          id: f.id,
+          friendId: friend.id,
+          nickname: friend.nickname,
+          avatar: friend.avatar,
+          signature: friend.signature,
+          status: friend.status,
+          remark: isRequester ? f.remark : null,
+        });
+      }
     });
+
+    const friends = Array.from(friendMap.values());
 
     return reply.send({
       code: 0,

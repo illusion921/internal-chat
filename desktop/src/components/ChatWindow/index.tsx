@@ -15,6 +15,7 @@ import { useChatStore } from '@stores/chatStore';
 import { messageApi, fileApi, groupApi } from '@services/api';
 import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom } from '@services/socket';
 import { formatTime } from '@utils/format';
+import { config } from '@src/config';
 import type { Message } from '@types/index';
 import type { UploadFile } from 'antd/es/upload/interface';
 import GroupInfo from '@components/GroupInfo';
@@ -286,7 +287,7 @@ const ChatWindow: React.FC = () => {
       const loadImage = async () => {
         try {
           const token = useAuthStore.getState().accessToken;
-          const response = await fetch(`/api/files/download/${fileId}`, {
+          const response = await fetch(`${config.apiBaseUrl}/files/download/${fileId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
             },
@@ -361,7 +362,7 @@ const ChatWindow: React.FC = () => {
                   e.stopPropagation();
                   try {
                     const token = useAuthStore.getState().accessToken;
-                    const response = await fetch(`/api/files/download/${msg.file?.id}`, {
+                    const response = await fetch(`${config.apiBaseUrl}/files/download/${msg.file?.id}`, {
                       headers: {
                         'Authorization': `Bearer ${token}`,
                       },

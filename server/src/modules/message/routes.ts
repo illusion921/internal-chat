@@ -54,23 +54,34 @@ export async function messageRoutes(fastify: FastifyInstance) {
       },
     });
 
-    // 整理会话列表
-    const conversations = [
-      ...friends.map((f) => {
-        const friend = f.userId === userId ? f.friend : f.user;
-        return {
-          id: generateConversationId('private', userId, friend.id),
+    // 整理会话列表 - 使用 Map 去重
+    const conversationMap = new Map<string, any>();
+    
+    friends.forEach((f) => {
+      const friend = f.userId === userId ? f.friend : f.user;
+      const conversationId = generateConversationId('private', userId, friend.id);
+      
+      // 避免重复添加
+      if (!conversationMap.has(conversationId)) {
+        conversationMap.set(conversationId, {
+          id: conversationId,
           type: 'private',
           target: friend,
           remark: f.remark,
-        };
-      }),
-      ...groups.map((g) => ({
-        id: generateConversationId('group', g.group.id, ''),
+        });
+      }
+    });
+    
+    groups.forEach((g) => {
+      const conversationId = generateConversationId('group', g.group.id, '');
+      conversationMap.set(conversationId, {
+        id: conversationId,
         type: 'group',
         target: g.group,
-      })),
-    ];
+      });
+    });
+
+    const conversations = Array.from(conversationMap.values());
 
     return reply.send({
       code: 0,
