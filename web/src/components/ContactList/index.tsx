@@ -37,7 +37,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const [ungroupedFriends, setUngroupedFriends] = useState<Friendship[]>([]);
   const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  const [createGroupLoading, setCreateGroupLoading] = useState(false);
+  const [createFriendGroupLoading, setCreateFriendGroupLoading] = useState(false);
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
   const [editGroupLoading, setEditGroupLoading] = useState(false);
@@ -68,9 +68,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       message.warning('请输入分组名称');
       return;
     }
-    if (createGroupLoading) return; // 防止重复提交
+    if (createFriendGroupLoading) return; // 防止重复提交
     
-    setCreateGroupLoading(true);
+    setCreateFriendGroupLoading(true);
     try {
       const response: any = await friendApi.createGroup(newGroupName.trim());
       if (response.code === 0) {
@@ -82,7 +82,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
     } catch (error) {
       message.error('创建失败');
     } finally {
-      setCreateGroupLoading(false);
+      setCreateFriendGroupLoading(false);
     }
   };
 
@@ -550,7 +550,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         title="创建分组"
         open={createGroupModalVisible}
         onCancel={() => {
-          if (!createGroupLoading) {
+          if (!createFriendGroupLoading) {
             setCreateGroupModalVisible(false);
             setNewGroupName('');
           }
@@ -558,7 +558,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         onOk={handleCreateFriendGroup}
         okText="创建"
         cancelText="取消"
-        confirmLoading={createGroupLoading}
+        confirmLoading={createFriendGroupLoading}
         centered
       >
         <Input
@@ -567,7 +567,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
           onChange={(e) => setNewGroupName(e.target.value)}
           maxLength={20}
           autoFocus
-          disabled={createGroupLoading}
+          disabled={createFriendGroupLoading}
         />
       </Modal>
 
