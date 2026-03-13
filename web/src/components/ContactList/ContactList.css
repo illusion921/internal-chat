@@ -111,6 +111,22 @@
   flex-shrink: 0;
 }
 
+.contact-tabs .ant-tabs-content-holder {
+  flex: 1;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0;
+}
+
+.contact-tabs .ant-tabs-content {
+  height: 100%;
+}
+
+.contact-tabs .ant-tabs-tabpane {
+  height: 100%;
+  overflow-y: auto;
+}
+
 .contact-tabs .ant-tabs-tab {
   padding: 10px 0;
   font-size: 13px;
