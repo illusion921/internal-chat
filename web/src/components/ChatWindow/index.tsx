@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Input, Button, Avatar, message, Upload, Image, Empty, Spin, Progress, Tag, Dropdown } from 'antd';
 import {
   SendOutlined,
@@ -92,18 +92,19 @@ const ChatWindow: React.FC = () => {
   // 监听消息撤回事件
   useEffect(() => {
     const unsubscribe = onMessageRecall((data) => {
-      const updatedMessages = messages.map((msg) =>
-        msg.id === data.messageId
-          ? { ...msg, recalledAt: data.recalledAt }
-          : msg
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === data.messageId
+            ? { ...msg, recalledAt: data.recalledAt }
+            : msg
+        )
       );
-      setMessages(updatedMessages);
     });
 
     return () => {
       unsubscribe?.();
     };
-  }, [messages]);
+  }, []); // 移除 messages 依赖，使用函数式更新
 
   const loadGroupMembers = async () => {
     if (!currentConversation || currentConversation.type !== 'group') return;
@@ -140,12 +141,13 @@ const ChatWindow: React.FC = () => {
         message.success('消息已撤回');
         // 更新本地消息状态
         const now = new Date().toISOString();
-        const updatedMessages = messages.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, recalledAt: now }
-            : msg
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, recalledAt: now }
+              : msg
+          )
         );
-        setMessages(updatedMessages);
       } else {
         message.error(response.message || '撤回失败');
       }
@@ -155,11 +157,11 @@ const ChatWindow: React.FC = () => {
   };
 
   // 检查是否可以撤回（2分钟内）
-  const canRecall = (msg: Message) => {
+  const canRecall = useCallback((msg: Message) => {
     if (msg.senderId !== user?.id || msg.recalledAt) return false;
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
     return new Date(msg.createdAt) > twoMinutesAgo;
-  };
+  }, [user?.id]);
 
   // 搜索消息
   const handleSearchMessages = async () => {
