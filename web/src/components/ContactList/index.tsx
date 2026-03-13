@@ -425,13 +425,14 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
             {/* 分组好友 */}
             {friendGroups.map((group) => {
               const isCollapsed = collapsedGroups.has(group.id);
+              const friends = group.friends || [];
               return (
                 <div key={group.id} className="friend-group-section">
                   <div className="friend-group-header">
                     <div className="group-header-left" onClick={() => toggleGroupCollapse(group.id)}>
                       {isCollapsed ? <RightOutlined /> : <DownOutlined />}
                       <span className="group-name">{group.name}</span>
-                      <span className="group-count">({group.friends.length})</span>
+                      <span className="group-count">({friends.length})</span>
                     </div>
                     <div className="group-header-actions">
                       <Dropdown
@@ -462,8 +463,8 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                     </div>
                   </div>
                   {!isCollapsed && (
-                    group.friends.length > 0 ? (
-                      group.friends.map(renderFriendItem)
+                    friends.length > 0 ? (
+                      friends.map(renderFriendItem)
                     ) : (
                       <div className="empty-group-tip">暂无好友，右键好友可移动到此分组</div>
                     )
