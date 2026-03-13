@@ -136,6 +136,15 @@ const ChatWindow: React.FC = () => {
       const response: any = await messageApi.recallMessage(messageId);
       if (response.code === 0) {
         message.success('消息已撤回');
+        // 更新本地消息状态
+        const now = new Date().toISOString();
+        setMessages((prev: Message[]) =>
+          prev.map((msg: Message) =>
+            msg.id === messageId
+              ? { ...msg, recalledAt: now }
+              : msg
+          )
+        );
       } else {
         message.error(response.message || '撤回失败');
       }
