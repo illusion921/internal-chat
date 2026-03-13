@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message, Dropdown, Collapse } from 'antd';
-import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined, FolderAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined, FolderAddOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import { useContactStore } from '@stores/index';
@@ -39,6 +39,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const [newGroupName, setNewGroupName] = useState('');
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [editGroupName, setEditGroupName] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // 加载好友分组
   useEffect(() => {
@@ -114,6 +115,28 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         }
       },
     });
+  };
+
+  // 切换分组折叠状态
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
+  // 全部展开/折叠
+  const toggleAllGroups = () => {
+    if (collapsedGroups.size === friendGroups.length) {
+      setCollapsedGroups(new Set());
+    } else {
+      setCollapsedGroups(new Set(friendGroups.map(g => g.id)));
+    }
   };
 
   // 移动好友到分组
@@ -343,7 +366,27 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         tabBarExtraContent={
           contactTab === 'friends' ? (
             <div style={{ display: 'flex', gap: 4 }}>
-              <Button type="text" size="small" icon={<FolderAddOutlined />} onClick={() => setCreateGroupModalVisible(true)} title="新建分组" />
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'create',
+                      label: '新建分组',
+                      icon: <FolderAddOutlined />,
+                      onClick: () => setCreateGroupModalVisible(true),
+                    },
+                    {
+                      key: 'toggle',
+                      label: collapsedGroups.size === friendGroups.length ? '全部展开' : '全部折叠',
+                      icon: collapsedGroups.size === friendGroups.length ? <DownOutlined /> : <RightOutlined />,
+                      onClick: toggleAllGroups,
+                      disabled: friendGroups.length === 0,
+                    },
+                  ],
+                }}
+              >
+                <Button type="text" size="small" icon={<FolderAddOutlined />} title="分组管理" />
+              </Dropdown>
               <Button type="text" size="small" icon={<UserAddOutlined />} onClick={() => setAddFriendVisible(true)} title="添加好友" />
             </div>
           ) : contactTab === 'groups' ? (
@@ -356,50 +399,66 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
             {/* 未分组好友 */}
             {ungroupedFriends.length > 0 && (
               <div className="friend-group-section">
-                <div className="friend-group-header">
-                  <span>未分组 ({ungroupedFriends.length})</span>
+                <div className="friend-group-header ungrouped">
+                  <div className="group-header-left">
+                    <DownOutlined />
+                    <span className="group-name">未分组</span>
+                    <span className="group-count">({ungroupedFriends.length})</span>
+                  </div>
                 </div>
                 {ungroupedFriends.map(renderFriendItem)}
               </div>
             )}
             
             {/* 分组好友 */}
-            {friendGroups.map((group) => (
-              <div key={group.id} className="friend-group-section">
-                <div className="friend-group-header">
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'rename',
-                          label: '重命名',
-                          icon: <EditOutlined />,
-                          onClick: () => {
-                            setEditGroupId(group.id);
-                            setEditGroupName(group.name);
-                          },
-                        },
-                        {
-                          key: 'delete',
-                          label: '删除分组',
-                          icon: <DeleteOutlined />,
-                          danger: true,
-                          onClick: () => handleDeleteGroup(group.id),
-                        },
-                      ],
-                    }}
-                    trigger={['contextMenu']}
-                  >
-                    <span>{group.name} ({group.friends.length})</span>
-                  </Dropdown>
+            {friendGroups.map((group) => {
+              const isCollapsed = collapsedGroups.has(group.id);
+              return (
+                <div key={group.id} className="friend-group-section">
+                  <div className="friend-group-header">
+                    <div className="group-header-left" onClick={() => toggleGroupCollapse(group.id)}>
+                      {isCollapsed ? <RightOutlined /> : <DownOutlined />}
+                      <span className="group-name">{group.name}</span>
+                      <span className="group-count">({group.friends.length})</span>
+                    </div>
+                    <div className="group-header-actions">
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'rename',
+                              label: '重命名',
+                              icon: <EditOutlined />,
+                              onClick: () => {
+                                setEditGroupId(group.id);
+                                setEditGroupName(group.name);
+                              },
+                            },
+                            {
+                              key: 'delete',
+                              label: '删除分组',
+                              icon: <DeleteOutlined />,
+                              danger: true,
+                              onClick: () => handleDeleteGroup(group.id),
+                            },
+                          ],
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button type="text" size="small" icon={<SettingOutlined />} className="group-setting-btn" />
+                      </Dropdown>
+                    </div>
+                  </div>
+                  {!isCollapsed && (
+                    group.friends.length > 0 ? (
+                      group.friends.map(renderFriendItem)
+                    ) : (
+                      <div className="empty-group-tip">暂无好友，右键好友可移动到此分组</div>
+                    )
+                  )}
                 </div>
-                {group.friends.length > 0 ? (
-                  group.friends.map(renderFriendItem)
-                ) : (
-                  <div className="empty-group-tip">暂无好友</div>
-                )}
-              </div>
-            ))}
+              );
+            })}
             
             {friendGroups.length === 0 && ungroupedFriends.length === 0 && (
               <div className="empty-tip">暂无好友</div>
