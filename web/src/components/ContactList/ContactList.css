@@ -3,26 +3,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-/* 自定义滚动条 */
-.chat-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.chat-list::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.chat-list::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
 }
 
 .chat-item {
@@ -95,7 +75,6 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .contact-tabs {
@@ -113,30 +92,15 @@
 
 .contact-tabs .ant-tabs-content-holder {
   flex: 1;
-  overflow-y: auto !important;
-  overflow-x: hidden !important;
   min-height: 0;
 }
 
 .contact-tabs .ant-tabs-content {
-  height: 100% !important;
+  height: 100%;
 }
 
 .contact-tabs .ant-tabs-tabpane {
-  height: 100% !important;
-  overflow-y: auto !important;
-}
-
-/* 确保 contact-items 不阻止滚动 */
-.contact-items {
-  padding: 8px 0;
-  min-height: min-content;
-}
-
-.contact-items.with-groups {
-  display: flex;
-  flex-direction: column;
-  min-height: min-content;
+  height: 100%;
 }
 
 .contact-tabs .ant-tabs-tab {
@@ -153,25 +117,11 @@
   background: #07c160;
 }
 
-/* 自定义滚动条 */
-.contact-tabs .ant-tabs-content-holder::-webkit-scrollbar {
-  width: 6px;
-}
-
-.contact-tabs .ant-tabs-content-holder::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.contact-tabs .ant-tabs-content-holder::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-.contact-tabs .ant-tabs-content-holder::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
 /* 联系人项 */
+.contact-items {
+  padding: 8px 0;
+}
+
 .contact-item {
   display: flex;
   align-items: center;
