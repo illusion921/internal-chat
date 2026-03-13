@@ -666,12 +666,14 @@ const ChatWindow: React.FC = () => {
           const isSelf = msg.senderId === user?.id;
           const msgCanRecall = canRecall(msg);
           
-          const contextMenuItems = msgCanRecall ? [
+          // 右键菜单项
+          const contextMenuItems = isSelf ? [
             {
               key: 'recall',
-              label: '撤回消息',
+              label: msgCanRecall ? '撤回消息' : '撤回消息 (超过2分钟)',
               icon: <RollbackOutlined />,
-              onClick: () => handleRecallMessage(msg.id),
+              disabled: !msgCanRecall,
+              onClick: msgCanRecall ? () => handleRecallMessage(msg.id) : undefined,
             },
           ] : [];
           
@@ -680,7 +682,6 @@ const ChatWindow: React.FC = () => {
               key={msg.id}
               menu={{ items: contextMenuItems }}
               trigger={['contextMenu']}
-              disabled={contextMenuItems.length === 0}
             >
               <div
                 id={`msg-${msg.id}`}
