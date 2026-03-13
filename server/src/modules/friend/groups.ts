@@ -86,6 +86,18 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
     const { name } = body;
     const userId = request.user!.userId;
 
+    // 检查是否已存在同名分组
+    const existing = await prisma.friendGroup.findFirst({
+      where: { userId, name },
+    });
+
+    if (existing) {
+      return reply.send({
+        code: 40001,
+        message: '分组名称已存在',
+      });
+    }
+
     // 获取当前最大顺序
     const maxOrder = await prisma.friendGroup.aggregate({
       where: { userId },

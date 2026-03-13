@@ -70,6 +70,13 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
     }
     if (createFriendGroupLoading) return; // 防止重复提交
     
+    // 检查是否已存在同名分组
+    const exists = friendGroups.some(g => g.name === newGroupName.trim());
+    if (exists) {
+      message.warning('分组名称已存在');
+      return;
+    }
+    
     setCreateFriendGroupLoading(true);
     try {
       const response: any = await friendApi.createGroup(newGroupName.trim());
@@ -78,6 +85,10 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         setCreateGroupModalVisible(false);
         setNewGroupName('');
         loadFriendGroups();
+      } else if (response.code === 40001) {
+        message.warning(response.message || '分组名称已存在');
+      } else {
+        message.error(response.message || '创建失败');
       }
     } catch (error) {
       message.error('创建失败');
