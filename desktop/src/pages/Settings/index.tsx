@@ -295,7 +295,7 @@ const Settings: React.FC<SettingsProps> = ({ visible, onClose }) => {
         <div>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ color: '#666' }}>
-              已登录 {sessions.length} 个设备（最多5个）
+              已登录 {sessions.length} 个设备（最多5个，仅限同一网络）
             </span>
             {sessions.length > 1 && (
               <Popconfirm
@@ -307,6 +307,12 @@ const Settings: React.FC<SettingsProps> = ({ visible, onClose }) => {
                 <Button danger size="small">踢出其他设备</Button>
               </Popconfirm>
             )}
+          </div>
+          
+          <div style={{ marginBottom: 16, padding: 12, background: '#fff7e6', borderRadius: 4, border: '1px solid #ffd591' }}>
+            <span style={{ color: '#ad6800', fontSize: 13 }}>
+              ⚠️ 安全提示：同一账号只能在同一网络（IP）下登录多个设备，从其他网络登录会自动踢出之前的设备。
+            </span>
           </div>
 
           {sessionsLoading ? (

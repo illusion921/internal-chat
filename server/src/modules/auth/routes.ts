@@ -26,6 +26,9 @@ const loginAttempts = new Map<string, { count: number; lockUntil: number }>();
 // 最大并发会话数
 const MAX_SESSIONS = 5;
 
+// 是否允许多 IP 登录（false = 只允许同一 IP 的多设备登录）
+const ALLOW_MULTI_IP = false;
+
 // 生成 token 哈希
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -91,6 +94,22 @@ export async function authRoutes(fastify: FastifyInstance) {
     // 登录成功，清除失败记录
     loginAttempts.delete(username);
 
+    // 获取设备和IP信息
+    const userAgent = request.headers['user-agent'] || '';
+    const deviceInfo = parseUserAgent(userAgent);
+    const ipAddress = request.ip || 'unknown';
+
+    // 检查是否允许多IP登录
+    if (!ALLOW_MULTI_IP) {
+      // 获取现有会话，踢出不同IP的设备
+      const existingSessions = await redisService.getUserSessions(user.id);
+      for (const session of existingSessions) {
+        if (session.ipAddress !== ipAddress) {
+          await redisService.deleteSession(session.sessionId);
+        }
+      }
+    }
+
     // 生成 token
     const accessToken = jwt.sign(
       { userId: user.id, username: user.username },
@@ -103,11 +122,6 @@ export async function authRoutes(fastify: FastifyInstance) {
       config.jwtSecret,
       { expiresIn: config.jwtRefreshExpiresIn }
     );
-
-    // 获取设备和IP信息
-    const userAgent = request.headers['user-agent'] || '';
-    const deviceInfo = parseUserAgent(userAgent);
-    const ipAddress = request.ip || 'unknown';
 
     // 创建会话
     const tokenHash = hashToken(accessToken);
