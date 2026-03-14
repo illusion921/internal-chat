@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../models/index.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // 检查是否是管理员
 async function checkAdmin(userId: string) {

@@ -53,13 +53,13 @@ await fastify.register(staticPlugin, {
   prefix: '/uploads/',
 });
 
-// 健康检查
+// 健康检查（简单版本，不依赖数据库）
 fastify.get('/health', async () => ({
   status: 'ok',
   timestamp: new Date().toISOString(),
 }));
 
-// 健康检查端点
+// 健康检查端点（完整版本，检查依赖）
 fastify.get('/api/health', async (request, reply) => {
   try {
     // 检查数据库连接
@@ -76,11 +76,12 @@ fastify.get('/api/health', async (request, reply) => {
         redis: 'ok',
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Health check failed:', error);
     return reply.status(503).send({
       status: 'error',
       timestamp: new Date().toISOString(),
-      error: 'Service unavailable',
+      error: error.message || 'Service unavailable',
     });
   }
 });
