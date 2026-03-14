@@ -208,7 +208,11 @@ export const redisService = {
       pipeline.del(RedisKeys.sessionDetail(sessionId));
       pipeline.srem(RedisKeys.userSessions(info.userId), sessionId);
       await pipeline.exec();
+      
+      // 返回用户ID，用于通知客户端
+      return info.userId;
     }
+    return null;
   },
 
   // 通过 token 删除会话

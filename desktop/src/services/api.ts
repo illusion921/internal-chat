@@ -1,9 +1,8 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '@stores/authStore';
-import { config } from '@src/config';
 
 const api = axios.create({
-  baseURL: config.apiBaseUrl,
+  baseURL: '/api',
   timeout: 300000, // 5分钟，支持大文件上传
   headers: {
     'Content-Type': 'application/json',
@@ -31,6 +30,16 @@ api.interceptors.response.use(
   },
   async (error: AxiosError<any>) => {
     const originalRequest = error.config;
+
+    // 会话被踢出（特定错误码）
+    if (error.response?.data?.code === 10004 || error.response?.data?.kicked) {
+      const { logout } = useAuthStore.getState();
+      logout();
+      // 显示提示
+      alert(error.response?.data?.message || '您的账号在其他地方登录，已被强制下线');
+      window.location.href = '/login';
+      return Promise.reject(error.response.data);
+    }
 
     // Token 过期，尝试刷新
     if (error.response?.status === 401 && originalRequest) {

@@ -3,7 +3,6 @@ import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import type { Message } from '@types/index';
 import { incrementUnread, sendBrowserNotification, requestNotificationPermission } from '@utils/notification';
-import { config } from '@src/config';
 
 let socket: Socket | null = null;
 
@@ -16,16 +15,23 @@ export function connectSocket() {
     return;
   }
 
+  // 如果已经连接，不再重复连接
   if (socket?.connected) {
     console.log('Socket already connected');
     return;
+  }
+  
+  // 如果有旧的连接，先断开
+  if (socket) {
+    socket.disconnect();
+    socket = null;
   }
 
   // 请求浏览器通知权限
   requestNotificationPermission();
 
-  // 使用配置的服务器地址
-  const wsUrl = config.wsUrl || window.location.origin;
+  // Web 端使用当前页面的 origin
+  const wsUrl = window.location.origin;
   
   socket = io(wsUrl, {
     auth: { token: accessToken },
@@ -45,6 +51,15 @@ export function connectSocket() {
     if (error.message.includes('Authentication')) {
       logout();
     }
+  });
+
+  // 会话被踢出
+  socket.on('session:kicked', (data: { reason: string }) => {
+    console.log('Session kicked:', data.reason);
+    // 清除登录状态
+    logout();
+    // 刷新页面跳转到登录页
+    window.location.reload();
   });
 
   // 接收新消息

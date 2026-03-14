@@ -53,6 +53,15 @@ export function connectSocket() {
     }
   });
 
+  // 会话被踢出
+  socket.on('session:kicked', (data: { reason: string }) => {
+    console.log('Session kicked:', data.reason);
+    // 清除登录状态
+    logout();
+    // 刷新页面跳转到登录页
+    window.location.reload();
+  });
+
   // 接收新消息
   socket.on('message:new', (message: Message) => {
     console.log('New message:', message);

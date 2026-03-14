@@ -60,8 +60,9 @@ export async function authMiddleware(
     
     if (!session) {
       return reply.status(401).send({
-        code: 10003,
+        code: 10004, // 特定错误码表示会话被踢出
         message: '会话已失效，请重新登录',
+        kicked: true,
       });
     }
     

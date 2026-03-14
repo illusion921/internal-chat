@@ -8,6 +8,17 @@ import { config } from '../../config/index.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
 import { redisService } from '../../services/redis.js';
+import { getSocketIO } from '../../socket/index.js';
+
+// 通知被踢出的设备
+async function notifyKickedOut(userId: string, reason: string = '您的账号在其他地方登录') {
+  try {
+    const io = getSocketIO();
+    io.to(`user:${userId}`).emit('session:kicked', { reason });
+  } catch (error) {
+    console.error('Failed to notify kicked session:', error);
+  }
+}
 
 // 验证 schema
 const loginSchema = z.object({
@@ -98,10 +109,19 @@ export async function authRoutes(fastify: FastifyInstance) {
     const userAgent = request.headers['user-agent'] || '';
     const deviceInfo = parseUserAgent(userAgent);
     // 获取真实 IP（支持代理）
-    const ipAddress = request.headers['x-forwarded-for']?.toString().split(',')[0].trim() 
-      || request.headers['x-real-ip']?.toString() 
-      || request.ip 
+    const forwardedFor = request.headers['x-forwarded-for'];
+    const realIp = request.headers['x-real-ip'];
+    const socketIp = request.socket.remoteAddress;
+    const fastifyIp = request.ip;
+    
+    const ipAddress = forwardedFor?.toString().split(',')[0].trim() 
+      || realIp?.toString() 
+      || fastifyIp
+      || socketIp
       || 'unknown';
+    
+    // 调试日志
+    console.log(`[登录] 用户: ${username}, IP: ${ipAddress}, X-Forwarded-For: ${forwardedFor}, X-Real-IP: ${realIp}, socket: ${socketIp}, fastify: ${fastifyIp}`);
 
     // 检查是否允许多IP登录
     if (!ALLOW_MULTI_IP) {
@@ -109,6 +129,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       const existingSessions = await redisService.getUserSessions(user.id);
       for (const session of existingSessions) {
         if (session.ipAddress !== ipAddress) {
+          // 通知被踢出的设备
+          notifyKickedOut(user.id, '您的账号在其他网络登录，已被强制下线');
           await redisService.deleteSession(session.sessionId);
         }
       }
@@ -282,6 +304,8 @@ export async function authRoutes(fastify: FastifyInstance) {
       throw new AppError('会话不存在', 40401, 404);
     }
     
+    // 通知被踢出的设备
+    notifyKickedOut(userId, '您已被管理员踢出');
     await redisService.deleteSession(sessionId);
     
     return reply.send({
@@ -310,6 +334,9 @@ export async function authRoutes(fastify: FastifyInstance) {
         await redisService.deleteSession(session.sessionId);
       }
     }
+    
+    // 通知其他设备被踢出
+    notifyKickedOut(userId, '您已被踢出，请重新登录');
     
     return reply.send({
       code: 0,
