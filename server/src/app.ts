@@ -59,6 +59,32 @@ fastify.get('/health', async () => ({
   timestamp: new Date().toISOString(),
 }));
 
+// 健康检查端点
+fastify.get('/api/health', async (request, reply) => {
+  try {
+    // 检查数据库连接
+    await prisma.$queryRaw`SELECT 1`;
+    
+    // 检查 Redis 连接
+    await redis.ping();
+    
+    return reply.send({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      services: {
+        database: 'ok',
+        redis: 'ok',
+      },
+    });
+  } catch (error) {
+    return reply.status(503).send({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: 'Service unavailable',
+    });
+  }
+});
+
 // 注册路由
 await fastify.register(authRoutes, { prefix: '/api/auth' });
 await fastify.register(userRoutes, { prefix: '/api/users' });
