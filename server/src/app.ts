@@ -29,6 +29,7 @@ const fastify = Fastify({
   logger: {
     level: config.logLevel,
   },
+  trustProxy: true, // 信任代理，获取真实客户端 IP
 });
 
 // 注册插件

@@ -97,7 +97,11 @@ export async function authRoutes(fastify: FastifyInstance) {
     // 获取设备和IP信息
     const userAgent = request.headers['user-agent'] || '';
     const deviceInfo = parseUserAgent(userAgent);
-    const ipAddress = request.ip || 'unknown';
+    // 获取真实 IP（支持代理）
+    const ipAddress = request.headers['x-forwarded-for']?.toString().split(',')[0].trim() 
+      || request.headers['x-real-ip']?.toString() 
+      || request.ip 
+      || 'unknown';
 
     // 检查是否允许多IP登录
     if (!ALLOW_MULTI_IP) {
@@ -179,7 +183,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       // 为新 token 创建会话
       const userAgent = request.headers['user-agent'] || '';
       const deviceInfo = parseUserAgent(userAgent);
-      const ipAddress = request.ip || 'unknown';
+      // 获取真实 IP（支持代理）
+      const ipAddress = request.headers['x-forwarded-for']?.toString().split(',')[0].trim() 
+        || request.headers['x-real-ip']?.toString() 
+        || request.ip 
+        || 'unknown';
       const tokenHash = hashToken(accessToken);
       
       await redisService.createSession(
