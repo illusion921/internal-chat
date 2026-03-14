@@ -41,10 +41,10 @@ export async function messageRoutes(fastify: FastifyInstance) {
       },
       include: {
         user: {
-          select: { id: true, nickname: true, avatar: true, status: true },
+          select: { id: true, nickname: true, avatar: true, status: true, signature: true },
         },
         friend: {
-          select: { id: true, nickname: true, avatar: true, status: true },
+          select: { id: true, nickname: true, avatar: true, status: true, signature: true },
         },
       },
     });
@@ -83,7 +83,37 @@ export async function messageRoutes(fastify: FastifyInstance) {
       });
     });
 
-    const conversations = Array.from(conversationMap.values());
+    // 获取每个会话的最后一条消息
+    const conversationIds = Array.from(conversationMap.keys());
+    const lastMessages = await prisma.message.findMany({
+      where: {
+        conversationId: { in: conversationIds },
+        recalledAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['conversationId'],
+      select: {
+        conversationId: true,
+        id: true,
+        content: true,
+        msgType: true,
+        senderId: true,
+        createdAt: true,
+        sender: {
+          select: { id: true, nickname: true },
+        },
+        file: {
+          select: { id: true, filename: true, mimeType: true },
+        },
+      },
+    });
+
+    // 将最后消息附加到会话
+    const lastMessageMap = new Map(lastMessages.map(m => [m.conversationId, m]));
+    const conversations = Array.from(conversationMap.values()).map(conv => ({
+      ...conv,
+      lastMessage: lastMessageMap.get(conv.id) || null,
+    }));
 
     return reply.send({
       code: 0,

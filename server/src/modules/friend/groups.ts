@@ -21,33 +21,60 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
   fastify.get('/', { preHandler: authMiddleware }, async (request, reply) => {
     const userId = request.user!.userId;
 
+    // 获取所有好友分组
     const groups = await prisma.friendGroup.findMany({
       where: { userId },
       orderBy: { order: 'asc' },
-      include: {
-        friendships: {
-          where: { status: 'accepted' },
-          include: {
-            friend: {
-              select: { id: true, nickname: true, avatar: true, signature: true, status: true },
-            },
-          },
-        },
-      },
     });
 
-    // 获取未分组的好友
-    const ungroupedFriends = await prisma.friendship.findMany({
+    // 获取所有好友关系（双向）
+    const allFriendships = await prisma.friendship.findMany({
       where: {
-        userId,
-        status: 'accepted',
-        groupId: null,
+        OR: [
+          { userId, status: 'accepted' },
+          { friendId: userId, status: 'accepted' },
+        ],
       },
       include: {
+        user: {
+          select: { id: true, nickname: true, avatar: true, signature: true, status: true },
+        },
         friend: {
           select: { id: true, nickname: true, avatar: true, signature: true, status: true },
         },
       },
+    });
+
+    // 按分组归类好友
+    const groupedFriends = new Map<string, any[]>();
+    const ungroupedFriends: any[] = [];
+
+    allFriendships.forEach((f) => {
+      // 确定好友信息（如果我是 userId，好友是 friend；如果我是 friendId，好友是 user）
+      const isUserOwner = f.userId === userId;
+      const friendInfo = isUserOwner ? f.friend : f.user;
+      
+      const friendData = {
+        id: f.id,
+        friendId: friendInfo.id,
+        nickname: friendInfo.nickname,
+        avatar: friendInfo.avatar,
+        signature: friendInfo.signature,
+        status: friendInfo.status,
+        remark: f.remark,
+      };
+
+      // 只有作为 userId 的记录才有 groupId
+      const groupId = isUserOwner ? f.groupId : null;
+
+      if (groupId) {
+        if (!groupedFriends.has(groupId)) {
+          groupedFriends.set(groupId, []);
+        }
+        groupedFriends.get(groupId)!.push(friendData);
+      } else {
+        ungroupedFriends.push(friendData);
+      }
     });
 
     return reply.send({
@@ -57,25 +84,9 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
           id: g.id,
           name: g.name,
           order: g.order,
-          friends: g.friendships.map((f) => ({
-            id: f.id,
-            friendId: f.friend.id,
-            nickname: f.friend.nickname,
-            avatar: f.friend.avatar,
-            signature: f.friend.signature,
-            status: f.friend.status,
-            remark: f.remark,
-          })),
+          friends: groupedFriends.get(g.id) || [],
         })),
-        ungrouped: ungroupedFriends.map((f) => ({
-          id: f.id,
-          friendId: f.friend.id,
-          nickname: f.friend.nickname,
-          avatar: f.friend.avatar,
-          signature: f.friend.signature,
-          status: f.friend.status,
-          remark: f.remark,
-        })),
+        ungrouped: ungroupedFriends,
       },
     });
   });

@@ -258,84 +258,102 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
     ];
     
     return (
-      <div
+      <Dropdown
         key={friend.id}
-        className="contact-item"
-        onClick={() => {
-          const conversationId = `private_${[user?.id, friend.friendId].sort().join('_')}`;
-          handleSelectConversation({
-            id: conversationId,
-            type: 'private',
-            target: {
-              id: friend.friendId,
-              nickname: friend.remark || friend.nickname,
-              avatar: friend.avatar,
-              status: friend.status,
+        menu={{
+          items: [
+            {
+              key: 'move',
+              label: '移动到分组',
+              children: allGroups.map(g => ({
+                key: g.id || 'ungrouped',
+                label: g.name,
+                onClick: () => handleMoveFriend(friend.id, g.id),
+              })),
             },
-          });
-        }}
-      >
-        <div className="contact-item-avatar">
-          <Badge dot={friend.status === 'online'} color="#07c160" offset={[-2, 30]}>
-            <Avatar
-              size={40}
-              src={friend.avatar}
-              icon={<UserOutlined />}
-              style={{ borderRadius: 4 }}
-            />
-          </Badge>
-        </div>
-        <div className="contact-item-info">
-          <div className="contact-item-name">{friend.remark || friend.nickname}</div>
-          <div className="contact-item-signature">{friend.signature || '暂无签名'}</div>
-        </div>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'move',
-                label: '移动到',
-                children: allGroups.map(g => ({
-                  key: g.id || 'ungrouped',
-                  label: g.name,
-                  onClick: () => handleMoveFriend(friend.id, g.id),
-                })),
-              },
-              {
-                type: 'divider',
-              },
-              {
-                key: 'delete',
-                label: '删除好友',
-                danger: true,
-                onClick: () => {
-                  Modal.confirm({
-                    title: '删除好友',
-                    content: `确定删除好友 ${friend.remark || friend.nickname}？`,
-                    onOk: async () => {
-                      try {
-                        const response: any = await friendApi.delete(friend.id);
-                        if (response.code === 0) {
-                          message.success('已删除好友');
-                          loadFriendGroups();
-                        }
-                      } catch (error) {
-                        message.error('删除失败');
+            {
+              type: 'divider',
+            },
+            {
+              key: 'delete',
+              label: '删除好友',
+              danger: true,
+              onClick: () => {
+                Modal.confirm({
+                  title: '删除好友',
+                  content: `确定删除好友 ${friend.remark || friend.nickname}？`,
+                  onOk: async () => {
+                    try {
+                      const response: any = await friendApi.delete(friend.id);
+                      if (response.code === 0) {
+                        message.success('已删除好友');
+                        loadFriendGroups();
                       }
-                    },
-                  });
-                },
+                    } catch (error) {
+                      message.error('删除失败');
+                    }
+                  },
+                });
               },
-            ],
+            },
+          ],
+        }}
+        trigger={['contextMenu']}
+      >
+        <div
+          className="contact-item"
+          onClick={() => {
+            const conversationId = `private_${[user?.id, friend.friendId].sort().join('_')}`;
+            handleSelectConversation({
+              id: conversationId,
+              type: 'private',
+              target: {
+                id: friend.friendId,
+                nickname: friend.remark || friend.nickname,
+                avatar: friend.avatar,
+                status: friend.status,
+              },
+            });
           }}
-          trigger={['contextMenu']}
         >
-          <Button type="text" size="small" className="friend-more-btn" onClick={e => e.stopPropagation()}>
-            ···
-          </Button>
-        </Dropdown>
-      </div>
+          <div className="contact-item-avatar">
+            <Badge dot={friend.status === 'online'} color="#07c160" offset={[-2, 30]}>
+              <Avatar
+                size={40}
+                src={friend.avatar}
+                icon={<UserOutlined />}
+                style={{ borderRadius: 4 }}
+              />
+            </Badge>
+          </div>
+          <div className="contact-item-info">
+            <div className="contact-item-name">{friend.remark || friend.nickname}</div>
+            <div className="contact-item-signature">{friend.signature || '暂无签名'}</div>
+          </div>
+        </div>
+      </Dropdown>
     );
+  };
+
+  // 格式化消息预览
+  const formatMessagePreview = (msg: any) => {
+    if (!msg) return null;
+    
+    // 根据消息类型显示不同预览
+    switch (msg.msgType) {
+      case 'text':
+        return msg.content;
+      case 'image':
+        return '[图片]';
+      case 'file':
+        return `[文件] ${msg.file?.filename || '未知文件'}`;
+      case 'voice':
+        return '[语音]';
+      case 'video':
+        return '[视频]';
+      default:
+        return '[消息]';
+    }
   };
 
   if (activeTab === 'chat') {
@@ -367,7 +385,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 </span>
               </div>
               <div className="chat-item-preview">
-                {conv.target.signature || '暂无消息'}
+                {formatMessagePreview(conv.lastMessage) || conv.target.signature || '暂无消息'}
               </div>
             </div>
           </div>

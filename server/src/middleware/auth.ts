@@ -22,17 +22,27 @@ export async function authMiddleware(
   done: HookHandlerDoneFunction
 ) {
   try {
+    // 优先从 Authorization header 获取 token
+    let token: string | undefined;
     const authHeader = request.headers.authorization;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // 如果 header 没有，尝试从 query 参数获取
+    if (!token) {
+      const query = request.query as { token?: string };
+      token = query.token;
+    }
+    
+    if (!token) {
       return reply.status(401).send({
         code: 10003,
         message: 'Token缺失，请重新登录',
       });
     }
 
-    const token = authHeader.substring(7);
-    
     const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
     request.user = decoded;
     

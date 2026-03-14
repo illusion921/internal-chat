@@ -2,6 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import type { Message } from '@types/index';
+import { incrementUnread, sendBrowserNotification, requestNotificationPermission } from '@utils/notification';
 
 let socket: Socket | null = null;
 
@@ -18,6 +19,9 @@ export function connectSocket() {
     console.log('Socket already connected');
     return;
   }
+
+  // 请求浏览器通知权限
+  requestNotificationPermission();
 
   // Web 端使用当前页面的 origin
   const wsUrl = window.location.origin;
@@ -54,6 +58,23 @@ export function connectSocket() {
         (c) => c.id === message.conversationId
       )?.unreadCount || 0;
       updateUnreadCount(message.conversationId, currentCount + 1);
+      
+      // 更新标签页未读提示
+      incrementUnread(1);
+      
+      // 发送浏览器通知（当页面不可见时）
+      if (document.visibilityState === 'hidden') {
+        const senderName = message.sender?.nickname || '用户';
+        let content = '发来一条消息';
+        if (message.msgType === 'text') {
+          content = message.content || content;
+        } else if (message.msgType === 'image') {
+          content = '[图片]';
+        } else if (message.msgType === 'file') {
+          content = '[文件]';
+        }
+        sendBrowserNotification(senderName, content);
+      }
     }
   });
 

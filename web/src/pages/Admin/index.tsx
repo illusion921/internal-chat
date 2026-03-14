@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Card, Table, Button, Input, Space, Tag, Modal, message, Popconfirm, Statistic, Row, Col, Avatar } from 'antd';
+import { Tabs, Card, Table, Button, Input, Space, Tag, Modal, message, Popconfirm, Statistic, Row, Col, Avatar, Form } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
@@ -8,6 +8,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
   ReloadOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -66,6 +67,11 @@ const Admin: React.FC = () => {
   const [userTotal, setUserTotal] = useState(0);
   const [groupTotal, setGroupTotal] = useState(0);
   const [pageSize] = useState(10);
+  
+  // 添加用户相关状态
+  const [addUserModalVisible, setAddUserModalVisible] = useState(false);
+  const [addUserLoading, setAddUserLoading] = useState(false);
+  const [addUserForm] = Form.useForm();
 
   useEffect(() => {
     loadStats();
@@ -153,6 +159,27 @@ const Admin: React.FC = () => {
       }
     } catch (error: any) {
       message.error(error.response?.data?.message || '删除失败');
+    }
+  };
+
+  // 添加用户
+  const handleAddUser = async (values: { username: string; password: string; nickname?: string }) => {
+    setAddUserLoading(true);
+    try {
+      const response = await axios.post('/api/admin/users', values, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.data.code === 0) {
+        message.success('用户创建成功');
+        setAddUserModalVisible(false);
+        addUserForm.resetFields();
+        loadUsers(1, userKeyword);
+        loadStats();
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '创建失败');
+    } finally {
+      setAddUserLoading(false);
     }
   };
 
@@ -333,6 +360,13 @@ const Admin: React.FC = () => {
               <Card>
                 <div style={{ marginBottom: 16 }}>
                   <Space>
+                    <Button
+                      type="primary"
+                      icon={<UserAddOutlined />}
+                      onClick={() => setAddUserModalVisible(true)}
+                    >
+                      添加用户
+                    </Button>
                     <Search
                       placeholder="搜索用户名或昵称"
                       allowClear
@@ -396,6 +430,58 @@ const Admin: React.FC = () => {
           },
         ]}
       />
+
+      {/* 添加用户弹窗 */}
+      <Modal
+        title="添加用户"
+        open={addUserModalVisible}
+        onCancel={() => {
+          if (!addUserLoading) {
+            setAddUserModalVisible(false);
+            addUserForm.resetFields();
+          }
+        }}
+        onOk={() => addUserForm.submit()}
+        okText="创建"
+        cancelText="取消"
+        confirmLoading={addUserLoading}
+        centered
+      >
+        <Form
+          form={addUserForm}
+          layout="vertical"
+          onFinish={handleAddUser}
+        >
+          <Form.Item
+            name="username"
+            label="用户名"
+            rules={[
+              { required: true, message: '请输入用户名' },
+              { min: 3, max: 20, message: '用户名长度 3-20 个字符' },
+              { pattern: /^[a-zA-Z0-9_]+$/, message: '只能包含字母、数字和下划线' },
+            ]}
+          >
+            <Input placeholder="请输入用户名" maxLength={20} autoFocus disabled={addUserLoading} />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="密码"
+            rules={[
+              { required: true, message: '请输入密码' },
+              { min: 6, max: 50, message: '密码长度 6-50 个字符' },
+            ]}
+          >
+            <Input.Password placeholder="请输入密码" maxLength={50} disabled={addUserLoading} />
+          </Form.Item>
+          <Form.Item
+            name="nickname"
+            label="昵称"
+            rules={[{ max: 50, message: '昵称最多 50 个字符' }]}
+          >
+            <Input placeholder="不填则使用用户名" maxLength={50} disabled={addUserLoading} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 };

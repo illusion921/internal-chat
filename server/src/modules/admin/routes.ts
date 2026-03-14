@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../models/index.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
+import bcrypt from 'bcrypt';
 
 // 检查是否是管理员
 async function checkAdmin(userId: string) {
@@ -43,6 +44,51 @@ export async function adminRoutes(fastify: FastifyInstance) {
         fileCount,
         onlineCount,
       },
+    });
+  });
+
+  // 创建用户
+  fastify.post('/users', { preHandler: authMiddleware }, async (request, reply) => {
+    const adminId = request.user!.userId;
+    await checkAdmin(adminId);
+
+    const body = z.object({
+      username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/, '用户名只能包含字母、数字和下划线'),
+      password: z.string().min(6).max(50),
+      nickname: z.string().min(1).max(50).optional(),
+    }).parse(request.body);
+
+    // 检查用户名是否已存在
+    const existing = await prisma.user.findUnique({
+      where: { username: body.username },
+    });
+
+    if (existing) {
+      throw new AppError('用户名已存在', 40001, 400);
+    }
+
+    // 加密密码
+    const passwordHash = await bcrypt.hash(body.password, 10);
+
+    // 创建用户
+    const user = await prisma.user.create({
+      data: {
+        username: body.username,
+        passwordHash,
+        nickname: body.nickname || body.username,
+      },
+      select: {
+        id: true,
+        username: true,
+        nickname: true,
+        createdAt: true,
+      },
+    });
+
+    return reply.send({
+      code: 0,
+      data: user,
+      message: '创建成功',
     });
   });
 

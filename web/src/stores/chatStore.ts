@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Conversation, Message } from '@types/index';
+import { clearUnread } from '@utils/notification';
 
 interface ChatState {
   // 状态
@@ -44,9 +45,19 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   addMessage: (message) =>
-    set((state) => ({
-      messages: [...state.messages, message],
-    })),
+    set((state) => {
+      // 更新会话列表中的最后一条消息
+      const updatedConversations = state.conversations.map((c) =>
+        c.id === message.conversationId
+          ? { ...c, lastMessage: message }
+          : c
+      );
+      
+      return {
+        messages: [...state.messages, message],
+        conversations: updatedConversations,
+      };
+    }),
 
   prependMessages: (messages) =>
     set((state) => ({
@@ -65,11 +76,16 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   clearUnreadCount: (conversationId) =>
-    set((state) => ({
-      conversations: state.conversations.map((c) =>
-        c.id === conversationId ? { ...c, unreadCount: 0 } : c
-      ),
-    })),
+    set((state) => {
+      // 清除标签页未读提示
+      clearUnread();
+      
+      return {
+        conversations: state.conversations.map((c) =>
+          c.id === conversationId ? { ...c, unreadCount: 0 } : c
+        ),
+      };
+    }),
 
   reset: () =>
     set({
