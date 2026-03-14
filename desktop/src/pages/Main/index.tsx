@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu, message, Spin } from 'antd';
+import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu, message, Spin, Popover } from 'antd';
 import {
   MessageOutlined,
   TeamOutlined,
   UserOutlined,
   SettingOutlined,
   LogoutOutlined,
+  DashboardOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
@@ -13,9 +14,12 @@ import { useChatStore } from '@stores/chatStore';
 import { useContactStore } from '@stores/index';
 import { friendApi, groupApi, messageApi } from '@services/api';
 import { disconnectSocket, connectSocket } from '@services/socket';
+import { initTitleNotification } from '@utils/notification';
+import { getAvatarUrl } from '@utils/asset';
 import ContactList from '@components/ContactList';
 import ChatWindow from '@components/ChatWindow';
 import Settings from '@pages/Settings';
+import Admin from '@pages/Admin';
 import './Main.css';
 
 const { Sider, Content } = Layout;
@@ -25,11 +29,16 @@ const Main: React.FC = () => {
   const { setConversations } = useChatStore();
   const { setFriends, setGroups, setFriendRequests, friendRequests } = useContactStore();
   
-  const [activeTab, setActiveTab] = useState<'chat' | 'contact'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'contact' | 'admin'>('chat');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // 检查是否是管理员
+  const isAdmin = user?.username === 'admin';
 
   useEffect(() => {
+    // 初始化标题通知
+    initTitleNotification();
     connectSocket();
     loadData();
     return () => disconnectSocket();
@@ -80,32 +89,57 @@ const Main: React.FC = () => {
     });
   };
 
-  const userMenu = (
-    <Menu className="user-dropdown-menu">
-      <Menu.Item key="settings" icon={<SettingOutlined />} onClick={() => setSettingsVisible(true)}>
-        设置
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="logout" icon={<LogoutOutlined />} danger onClick={handleLogout}>
-        退出登录
-      </Menu.Item>
-    </Menu>
+  // 用户信息卡片内容
+  const userInfoCard = (
+    <div className="user-info-card">
+      <div className="user-info-header">
+        <Avatar
+          size={64}
+          src={getAvatarUrl(user?.avatar)}
+          icon={<UserOutlined />}
+          style={{ backgroundColor: '#07c160' }}
+        />
+        <div className="user-info-name">{user?.nickname || '用户'}</div>
+        <div className="user-info-username">@{user?.username}</div>
+        {user?.signature && <div className="user-info-signature">{user.signature}</div>}
+      </div>
+      <div className="user-info-actions">
+        <div 
+          className="user-action-item" 
+          onClick={() => {
+            setSettingsVisible(true);
+          }}
+        >
+          <SettingOutlined /> 设置
+        </div>
+        <div className="user-action-item logout" onClick={handleLogout}>
+          <LogoutOutlined /> 退出登录
+        </div>
+      </div>
+    </div>
   );
 
   return (
     <Layout className="main-layout">
       {/* 左侧导航栏 */}
       <Sider className="nav-sider">
-        <Dropdown overlay={userMenu} trigger={['click']} placement="bottomLeft">
+        <Popover
+          content={userInfoCard}
+          trigger="hover"
+          placement="rightTop"
+          overlayClassName="user-info-popover"
+          mouseEnterDelay={0.3}
+          mouseLeaveDelay={0.1}
+        >
           <div className="nav-avatar">
             <Avatar
               size={40}
-              src={user?.avatar}
+              src={getAvatarUrl(user?.avatar)}
               icon={<UserOutlined />}
               style={{ backgroundColor: '#07c160', cursor: 'pointer' }}
             />
           </div>
-        </Dropdown>
+        </Popover>
 
         <div className="nav-menu">
           <div
@@ -122,6 +156,14 @@ const Main: React.FC = () => {
               <TeamOutlined style={{ fontSize: 22 }} />
             </Badge>
           </div>
+          {isAdmin && (
+            <div
+              className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+              onClick={() => setActiveTab('admin')}
+            >
+              <DashboardOutlined style={{ fontSize: 22 }} />
+            </div>
+          )}
         </div>
 
         <div className="nav-footer">
@@ -150,9 +192,9 @@ const Main: React.FC = () => {
         </div>
       </Sider>
 
-      {/* 聊天窗口 */}
+      {/* 聊天窗口或管理页面 */}
       <Content className="chat-content">
-        <ChatWindow />
+        {activeTab === 'admin' ? <Admin /> : <ChatWindow />}
       </Content>
 
       <Settings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />

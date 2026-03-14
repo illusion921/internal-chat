@@ -15,9 +15,16 @@ export function connectSocket() {
     return;
   }
 
+  // 如果已经连接，不再重复连接
   if (socket?.connected) {
     console.log('Socket already connected');
     return;
+  }
+  
+  // 如果有旧的连接，先断开
+  if (socket) {
+    socket.disconnect();
+    socket = null;
   }
 
   // 请求浏览器通知权限

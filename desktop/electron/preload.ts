@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // 应用版本
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
+  
+  // 任务栏徽章
+  setUnreadBadge: (count: number) => 
+    ipcRenderer.invoke('badge:setUnread', count),
+  
+  clearUnreadBadge: () => 
+    ipcRenderer.invoke('badge:clear'),
 });
 
 // TypeScript 类型定义
@@ -31,6 +38,8 @@ export interface ElectronAPI {
   writeFile: (filePath: string, data: string) => Promise<{ success: boolean; error?: string }>;
   platform: NodeJS.Platform;
   getVersion: () => Promise<string>;
+  setUnreadBadge: (count: number) => Promise<{ success: boolean }>;
+  clearUnreadBadge: () => Promise<{ success: boolean }>;
 }
 
 declare global {

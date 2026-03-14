@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, message, Modal, Tooltip } from 'antd';
+import { UserOutlined, LockOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { authApi } from '@services/api';
 import { connectSocket } from '@services/socket';
+import { config, loadUserConfig, saveUserConfig } from '@src/config';
 import type { User } from '@types/index';
 import './Login.css';
 
@@ -14,7 +15,24 @@ interface LoginForm {
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [configVisible, setConfigVisible] = useState(false);
+  const [serverUrl, setServerUrl] = useState(config.apiBaseUrl.replace('/api', ''));
   const { setAuth } = useAuthStore();
+
+  useEffect(() => {
+    loadUserConfig();
+    setServerUrl(config.apiBaseUrl.replace('/api', ''));
+  }, []);
+
+  const handleSaveConfig = () => {
+    const url = serverUrl.trim().replace(/\/$/, '');
+    saveUserConfig({
+      apiBaseUrl: `${url}/api`,
+      wsUrl: url.replace(/^http/, 'ws'),
+    });
+    setConfigVisible(false);
+    message.success('服务器地址已保存');
+  };
 
   const onFinish = async (values: LoginForm) => {
     setLoading(true);
@@ -30,7 +48,7 @@ const Login: React.FC = () => {
         message.error(response.message || '登录失败');
       }
     } catch (error: any) {
-      message.error(error?.message || '登录失败，请检查网络');
+      message.error(error?.message || '登录失败，请检查网络或服务器地址');
     } finally {
       setLoading(false);
     }
@@ -39,6 +57,17 @@ const Login: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-box">
+        {/* 服务器设置按钮 */}
+        <div className="login-settings">
+          <Tooltip title="服务器设置">
+            <Button
+              type="text"
+              icon={<SettingOutlined />}
+              onClick={() => setConfigVisible(true)}
+            />
+          </Tooltip>
+        </div>
+
         {/* Logo区域 */}
         <div className="login-header">
           <div className="login-logo">
@@ -96,6 +125,29 @@ const Login: React.FC = () => {
           <p>企业内部通讯系统 · 安全可靠</p>
         </div>
       </div>
+
+      {/* 服务器设置弹窗 */}
+      <Modal
+        title="服务器设置"
+        open={configVisible}
+        onOk={handleSaveConfig}
+        onCancel={() => setConfigVisible(false)}
+        okText="保存"
+        cancelText="取消"
+        centered
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ marginBottom: 8, color: '#666' }}>服务器地址：</p>
+          <Input
+            placeholder="http://192.168.1.39:3001"
+            value={serverUrl}
+            onChange={(e) => setServerUrl(e.target.value)}
+          />
+          <p style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+            请输入服务器地址，例如：http://192.168.1.39:3001
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

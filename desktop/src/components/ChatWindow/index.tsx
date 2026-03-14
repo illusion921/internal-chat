@@ -15,6 +15,7 @@ import { useChatStore } from '@stores/chatStore';
 import { messageApi, fileApi, groupApi } from '@services/api';
 import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom } from '@services/socket';
 import { formatTime } from '@utils/format';
+import { getAvatarUrl } from '@utils/asset';
 import { config } from '@src/config';
 import type { Message } from '@types/index';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -406,7 +407,7 @@ const ChatWindow: React.FC = () => {
         <div className="chat-header">
           <div className="chat-header-info">
             <Avatar
-              src={currentConversation.target.avatar}
+              src={getAvatarUrl(currentConversation.target.avatar)}
               icon={currentConversation.type === 'group' ? <TeamOutlined /> : <UserOutlined />}
             />
             <div className="chat-header-title">
@@ -452,7 +453,7 @@ const ChatWindow: React.FC = () => {
               {!isSelf && (
                 <Avatar
                   size={36}
-                  src={msg.sender.avatar}
+                  src={getAvatarUrl(msg.sender.avatar)}
                   icon={<UserOutlined />}
                 />
               )}
@@ -472,7 +473,7 @@ const ChatWindow: React.FC = () => {
               {isSelf && (
                 <Avatar
                   size={36}
-                  src={user?.avatar}
+                  src={getAvatarUrl(user?.avatar)}
                   icon={<UserOutlined />}
                 />
               )}
@@ -498,7 +499,7 @@ const ChatWindow: React.FC = () => {
             </div>
             <Avatar
               size={36}
-              src={user?.avatar}
+              src={getAvatarUrl(user?.avatar)}
               icon={<UserOutlined />}
             />
           </div>
@@ -561,7 +562,7 @@ const ChatWindow: React.FC = () => {
               <div key={member.id} className="member-item">
                 <Avatar
                   size={32}
-                  src={member.user?.avatar}
+                  src={getAvatarUrl(member.user?.avatar)}
                   icon={<UserOutlined />}
                 />
                 <div className="member-info">

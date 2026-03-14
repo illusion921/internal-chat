@@ -48,6 +48,11 @@
       "dist/**/*",
       "package.json"
     ],
+    "win": {
+      "target": [
+        { "target": "zip", "arch": ["x64"] }
+      ]
+    },
     "linux": {
       "target": [
         { "target": "deb", "arch": ["x64", "arm64"] },

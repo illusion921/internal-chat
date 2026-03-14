@@ -110,6 +110,21 @@ export const friendApi = {
   
   setRemark: (id: string, remark: string) =>
     api.put(`/friends/${id}/remark`, { remark }),
+  
+  // 好友分组
+  getGroups: () => api.get('/friends/groups'),
+  
+  createGroup: (name: string) => api.post('/friends/groups', { name }),
+  
+  updateGroup: (id: string, name: string) => api.put(`/friends/groups/${id}`, { name }),
+  
+  deleteGroup: (id: string) => api.delete(`/friends/groups/${id}`),
+  
+  moveFriend: (friendshipId: string, groupId: string | null) =>
+    api.put(`/friends/groups/${friendshipId}/move`, { groupId }),
+  
+  reorderGroups: (orders: { id: string; order: number }[]) =>
+    api.put('/friends/groups/reorder', { orders }),
 };
 
 // Group API
@@ -157,6 +172,16 @@ export const messageApi = {
   
   getUnreadCount: (conversationId: string) =>
     api.get(`/conversations/${conversationId}/unread-count`),
+  
+  // 撤回消息
+  recallMessage: (messageId: string) =>
+    api.post(`/conversations/messages/${messageId}/recall`),
+  
+  // 搜索消息
+  search: (keyword: string, conversationId?: string, page = 1, pageSize = 20) =>
+    api.get('/conversations/search', {
+      params: { keyword, conversationId, page, pageSize },
+    }),
 };
 
 // File API

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAvatarUrl } from '@utils/asset';
 import { Modal, Avatar, List, Button, Input, Select, message, Popconfirm, Tag } from 'antd';
 import {
   UserOutlined,
@@ -161,7 +162,7 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
       <div className="group-info-header">
         <Avatar
           size={64}
-          src={group.avatar}
+          src={getAvatarUrl(group.avatar)}
           icon={<TeamOutlined />}
           style={{ backgroundColor: '#07c160' }}
         />
@@ -254,7 +255,7 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
                 <List.Item.Meta
                   avatar={
                     <Avatar
-                      src={member.user.avatar}
+                      src={getAvatarUrl(member.user.avatar)}
                       icon={<UserOutlined />}
                     />
                   }

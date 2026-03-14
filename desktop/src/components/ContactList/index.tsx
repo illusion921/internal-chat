@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
-import { List, Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message } from 'antd';
-import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { getAvatarUrl } from '@utils/asset';
+import { Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message, Dropdown, Collapse } from 'antd';
+import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined, FolderAddOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons';
+import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import { useContactStore } from '@stores/index';
 import { friendApi, groupApi, userApi } from '@services/api';
 import type { Conversation, Friendship, Group, User } from '@types/index';
 import './ContactList.css';
 
+interface FriendGroup {
+  id: string;
+  name: string;
+  order: number;
+  friends: Friendship[];
+}
+
 interface ContactListProps {
   activeTab: 'chat' | 'contact';
 }
 
 const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
+  const { user } = useAuthStore();
   const { conversations, setCurrentConversation, currentConversation } = useChatStore();
   const { friends, groups, friendRequests, setFriends, setFriendRequests, setGroups } = useContactStore();
   
@@ -20,7 +30,151 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [addFriendVisible, setAddFriendVisible] = useState(false);
   const [createGroupVisible, setCreateGroupVisible] = useState(false);
+  const [createGroupLoading, setCreateGroupLoading] = useState(false);
   const [addGroupForm] = Form.useForm();
+  
+  // 好友分组状态
+  const [friendGroups, setFriendGroups] = useState<FriendGroup[]>([]);
+  const [ungroupedFriends, setUngroupedFriends] = useState<Friendship[]>([]);
+  const [createGroupModalVisible, setCreateGroupModalVisible] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [createFriendGroupLoading, setCreateFriendGroupLoading] = useState(false);
+  const [editGroupId, setEditGroupId] = useState<string | null>(null);
+  const [editGroupName, setEditGroupName] = useState('');
+  const [editGroupLoading, setEditGroupLoading] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  // 加载好友分组
+  useEffect(() => {
+    if (contactTab === 'friends') {
+      loadFriendGroups();
+    }
+  }, [contactTab]);
+
+  const loadFriendGroups = async () => {
+    try {
+      const response: any = await friendApi.getGroups();
+      if (response.code === 0) {
+        setFriendGroups(response.data.groups || []);
+        setUngroupedFriends(response.data.ungrouped || []);
+      }
+    } catch (error) {
+      console.error('Failed to load friend groups:', error);
+    }
+  };
+
+  // 创建好友分组
+  const handleCreateFriendGroup = async () => {
+    if (!newGroupName.trim()) {
+      message.warning('请输入分组名称');
+      return;
+    }
+    if (createFriendGroupLoading) return; // 防止重复提交
+    
+    // 检查是否已存在同名分组
+    const exists = friendGroups.some(g => g.name === newGroupName.trim());
+    if (exists) {
+      message.warning('分组名称已存在');
+      return;
+    }
+    
+    setCreateFriendGroupLoading(true);
+    try {
+      const response: any = await friendApi.createGroup(newGroupName.trim());
+      if (response.code === 0) {
+        message.success('分组创建成功');
+        setCreateGroupModalVisible(false);
+        setNewGroupName('');
+        loadFriendGroups();
+      } else if (response.code === 40001) {
+        message.warning(response.message || '分组名称已存在');
+      } else {
+        message.error(response.message || '创建失败');
+      }
+    } catch (error) {
+      message.error('创建失败');
+    } finally {
+      setCreateFriendGroupLoading(false);
+    }
+  };
+
+  // 重命名分组
+  const handleRenameGroup = async (groupId: string) => {
+    if (!editGroupName.trim()) {
+      message.warning('请输入分组名称');
+      return;
+    }
+    if (editGroupLoading) return; // 防止重复提交
+    
+    setEditGroupLoading(true);
+    try {
+      const response: any = await friendApi.updateGroup(groupId, editGroupName.trim());
+      if (response.code === 0) {
+        message.success('分组重命名成功');
+        setEditGroupId(null);
+        setEditGroupName('');
+        loadFriendGroups();
+      }
+    } catch (error) {
+      message.error('重命名失败');
+    } finally {
+      setEditGroupLoading(false);
+    }
+  };
+
+  // 删除分组
+  const handleDeleteGroup = async (groupId: string) => {
+    Modal.confirm({
+      title: '删除分组',
+      content: '删除分组后，分组内的好友将移至未分组，确定删除？',
+      onOk: async () => {
+        try {
+          const response: any = await friendApi.deleteGroup(groupId);
+          if (response.code === 0) {
+            message.success('分组已删除');
+            loadFriendGroups();
+          }
+        } catch (error) {
+          message.error('删除失败');
+        }
+      },
+    });
+  };
+
+  // 切换分组折叠状态
+  const toggleGroupCollapse = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
+  // 全部展开/折叠
+  const toggleAllGroups = () => {
+    if (collapsedGroups.size === friendGroups.length) {
+      setCollapsedGroups(new Set());
+    } else {
+      setCollapsedGroups(new Set(friendGroups.map(g => g.id)));
+    }
+  };
+
+  // 移动好友到分组
+  const handleMoveFriend = async (friendshipId: string, groupId: string | null) => {
+    try {
+      const response: any = await friendApi.moveFriend(friendshipId, groupId);
+      if (response.code === 0) {
+        message.success('已移动到指定分组');
+        loadFriendGroups();
+      }
+    } catch (error) {
+      message.error('移动失败');
+    }
+  };
 
   // 搜索用户
   const handleSearch = async (value: string) => {
@@ -63,8 +217,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         message.success(action === 'accept' ? '已添加好友' : '已拒绝');
         setFriendRequests(friendRequests.filter((r) => r.id !== id));
         if (action === 'accept') {
-          const friendsRes: any = await friendApi.getList();
-          if (friendsRes.code === 0) setFriends(friendsRes.data);
+          loadFriendGroups();
         }
       }
     } catch (error) {
@@ -74,6 +227,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
 
   // 创建群组
   const handleCreateGroup = async (values: { name: string; memberIds: string[] }) => {
+    if (createGroupLoading) return;
+    
+    setCreateGroupLoading(true);
     try {
       const response: any = await groupApi.create(values.name, values.memberIds);
       if (response.code === 0) {
@@ -85,6 +241,8 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       }
     } catch (error) {
       message.error('创建失败');
+    } finally {
+      setCreateGroupLoading(false);
     }
   };
 
@@ -93,8 +251,113 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
     setCurrentConversation(conv);
   };
 
+  // 渲染好友项
+  const renderFriendItem = (friend: Friendship) => {
+    const allGroups = [
+      { id: null, name: '未分组' },
+      ...friendGroups.map(g => ({ id: g.id, name: g.name }))
+    ];
+    
+    return (
+      <Dropdown
+        key={friend.id}
+        menu={{
+          items: [
+            {
+              key: 'move',
+              label: '移动到分组',
+              children: allGroups.map(g => ({
+                key: g.id || 'ungrouped',
+                label: g.name,
+                onClick: () => handleMoveFriend(friend.id, g.id),
+              })),
+            },
+            {
+              type: 'divider',
+            },
+            {
+              key: 'delete',
+              label: '删除好友',
+              danger: true,
+              onClick: () => {
+                Modal.confirm({
+                  title: '删除好友',
+                  content: `确定删除好友 ${friend.remark || friend.nickname}？`,
+                  onOk: async () => {
+                    try {
+                      const response: any = await friendApi.delete(friend.id);
+                      if (response.code === 0) {
+                        message.success('已删除好友');
+                        loadFriendGroups();
+                      }
+                    } catch (error) {
+                      message.error('删除失败');
+                    }
+                  },
+                });
+              },
+            },
+          ],
+        }}
+        trigger={['contextMenu']}
+      >
+        <div
+          className="contact-item"
+          onClick={() => {
+            const conversationId = `private_${[user?.id, friend.friendId].sort().join('_')}`;
+            handleSelectConversation({
+              id: conversationId,
+              type: 'private',
+              target: {
+                id: friend.friendId,
+                nickname: friend.remark || friend.nickname,
+                avatar: friend.avatar,
+                status: friend.status,
+              },
+            });
+          }}
+        >
+          <div className="contact-item-avatar">
+            <Badge dot={friend.status === 'online'} color="#07c160" offset={[-2, 30]}>
+              <Avatar
+                size={40}
+                src={getAvatarUrl(friend.avatar)}
+                icon={<UserOutlined />}
+                style={{ borderRadius: 4 }}
+              />
+            </Badge>
+          </div>
+          <div className="contact-item-info">
+            <div className="contact-item-name">{friend.remark || friend.nickname}</div>
+            <div className="contact-item-signature">{friend.signature || '暂无签名'}</div>
+          </div>
+        </div>
+      </Dropdown>
+    );
+  };
+
+  // 格式化消息预览
+  const formatMessagePreview = (msg: any) => {
+    if (!msg) return null;
+    
+    // 根据消息类型显示不同预览
+    switch (msg.msgType) {
+      case 'text':
+        return msg.content;
+      case 'image':
+        return '[图片]';
+      case 'file':
+        return `[文件] ${msg.file?.filename || '未知文件'}`;
+      case 'voice':
+        return '[语音]';
+      case 'video':
+        return '[视频]';
+      default:
+        return '[消息]';
+    }
+  };
+
   if (activeTab === 'chat') {
-    // 消息列表 - 微信风格
     return (
       <div className="chat-list">
         {conversations.map((conv) => (
@@ -107,7 +370,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
               <Badge count={conv.unreadCount || 0} size="small" offset={[-2, -2]}>
                 <Avatar
                   size={42}
-                  src={conv.target.avatar}
+                  src={getAvatarUrl(conv.target.avatar)}
                   icon={<UserOutlined />}
                   style={{ borderRadius: 4, backgroundColor: '#07c160' }}
                 />
@@ -123,7 +386,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 </span>
               </div>
               <div className="chat-item-preview">
-                {conv.target.signature || '暂无消息'}
+                {formatMessagePreview(conv.lastMessage) || conv.target.signature || '暂无消息'}
               </div>
             </div>
           </div>
@@ -135,7 +398,6 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
     );
   }
 
-  // 联系人列表
   return (
     <div className="contact-list-wrapper">
       <Tabs
@@ -145,47 +407,105 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         className="contact-tabs"
         tabBarExtraContent={
           contactTab === 'friends' ? (
-            <Button type="text" icon={<UserAddOutlined />} onClick={() => setAddFriendVisible(true)} />
+            <div style={{ display: 'flex', gap: 4 }}>
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'create',
+                      label: '新建分组',
+                      icon: <FolderAddOutlined />,
+                      onClick: () => setCreateGroupModalVisible(true),
+                    },
+                    {
+                      key: 'toggle',
+                      label: collapsedGroups.size === friendGroups.length ? '全部展开' : '全部折叠',
+                      icon: collapsedGroups.size === friendGroups.length ? <DownOutlined /> : <RightOutlined />,
+                      onClick: toggleAllGroups,
+                      disabled: friendGroups.length === 0,
+                    },
+                  ],
+                }}
+              >
+                <Button type="text" size="small" icon={<FolderAddOutlined />} title="分组管理" />
+              </Dropdown>
+              <Button type="text" size="small" icon={<UserAddOutlined />} onClick={() => setAddFriendVisible(true)} title="添加好友" />
+            </div>
           ) : contactTab === 'groups' ? (
-            <Button type="text" icon={<PlusOutlined />} onClick={() => setCreateGroupVisible(true)} />
+            <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => setCreateGroupVisible(true)} title="创建群组" />
           ) : null
         }
       >
         <Tabs.TabPane tab={`好友 (${friends.length})`} key="friends">
-          <div className="contact-items">
-            {friends.map((friend) => (
-              <div
-                key={friend.id}
-                className="contact-item"
-                onClick={() => {
-                  handleSelectConversation({
-                    id: `private_${[friend.friendId].sort().join('_')}`,
-                    type: 'private',
-                    target: {
-                      id: friend.friendId,
-                      nickname: friend.remark || friend.nickname,
-                      avatar: friend.avatar,
-                      status: friend.status,
-                    },
-                  });
-                }}
-              >
-                <div className="contact-item-avatar">
-                  <Badge dot={friend.status === 'online'} color="#07c160" offset={[-2, 30]}>
-                    <Avatar
-                      size={40}
-                      src={friend.avatar}
-                      icon={<UserOutlined />}
-                      style={{ borderRadius: 4 }}
-                    />
-                  </Badge>
+          <div className="contact-items with-groups">
+            {/* 未分组好友 */}
+            {ungroupedFriends.length > 0 && (
+              <div className="friend-group-section">
+                <div className="friend-group-header ungrouped">
+                  <div className="group-header-left">
+                    <DownOutlined />
+                    <span className="group-name">未分组</span>
+                    <span className="group-count">({ungroupedFriends.length})</span>
+                  </div>
                 </div>
-                <div className="contact-item-info">
-                  <div className="contact-item-name">{friend.remark || friend.nickname}</div>
-                  <div className="contact-item-signature">{friend.signature}</div>
-                </div>
+                {ungroupedFriends.map(renderFriendItem)}
               </div>
-            ))}
+            )}
+            
+            {/* 分组好友 */}
+            {friendGroups.map((group) => {
+              const isCollapsed = collapsedGroups.has(group.id);
+              const friends = group.friends || [];
+              return (
+                <div key={group.id} className="friend-group-section">
+                  <div className="friend-group-header">
+                    <div className="group-header-left" onClick={() => toggleGroupCollapse(group.id)}>
+                      {isCollapsed ? <RightOutlined /> : <DownOutlined />}
+                      <span className="group-name">{group.name}</span>
+                      <span className="group-count">({friends.length})</span>
+                    </div>
+                    <div className="group-header-actions">
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'rename',
+                              label: '重命名',
+                              icon: <EditOutlined />,
+                              onClick: () => {
+                                setEditGroupId(group.id);
+                                setEditGroupName(group.name);
+                              },
+                            },
+                            {
+                              key: 'delete',
+                              label: '删除分组',
+                              icon: <DeleteOutlined />,
+                              danger: true,
+                              onClick: () => handleDeleteGroup(group.id),
+                            },
+                          ],
+                        }}
+                        trigger={['click']}
+                      >
+                        <Button type="text" size="small" icon={<SettingOutlined />} className="group-setting-btn" />
+                      </Dropdown>
+                    </div>
+                  </div>
+                  {!isCollapsed && (
+                    friends.length > 0 ? (
+                      friends.map(renderFriendItem)
+                    ) : (
+                      <div className="empty-group-tip">暂无好友，右键好友可移动到此分组</div>
+                    )
+                  )}
+                </div>
+              );
+            })}
+            
+            {friendGroups.length === 0 && ungroupedFriends.length === 0 && (
+              <div className="empty-tip">暂无好友</div>
+            )}
           </div>
         </Tabs.TabPane>
 
@@ -206,7 +526,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 <div className="contact-item-avatar">
                   <Avatar
                     size={40}
-                    src={group.avatar}
+                    src={getAvatarUrl(group.avatar)}
                     icon={<TeamOutlined />}
                     style={{ borderRadius: 4, backgroundColor: '#07c160' }}
                   />
@@ -227,7 +547,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 <div className="contact-item-avatar">
                   <Avatar
                     size={40}
-                    src={request.from.avatar}
+                    src={getAvatarUrl(request.from.avatar)}
                     icon={<UserOutlined />}
                     style={{ borderRadius: 4 }}
                   />
@@ -255,6 +575,58 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         </Tabs.TabPane>
       </Tabs>
 
+      {/* 创建分组弹窗 */}
+      <Modal
+        title="创建分组"
+        open={createGroupModalVisible}
+        onCancel={() => {
+          if (!createFriendGroupLoading) {
+            setCreateGroupModalVisible(false);
+            setNewGroupName('');
+          }
+        }}
+        onOk={handleCreateFriendGroup}
+        okText="创建"
+        cancelText="取消"
+        confirmLoading={createFriendGroupLoading}
+        centered
+      >
+        <Input
+          placeholder="请输入分组名称"
+          value={newGroupName}
+          onChange={(e) => setNewGroupName(e.target.value)}
+          maxLength={20}
+          autoFocus
+          disabled={createFriendGroupLoading}
+        />
+      </Modal>
+
+      {/* 重命名分组弹窗 */}
+      <Modal
+        title="重命名分组"
+        open={!!editGroupId}
+        onCancel={() => {
+          if (!editGroupLoading) {
+            setEditGroupId(null);
+            setEditGroupName('');
+          }
+        }}
+        onOk={() => editGroupId && handleRenameGroup(editGroupId)}
+        okText="确定"
+        cancelText="取消"
+        confirmLoading={editGroupLoading}
+        centered
+      >
+        <Input
+          placeholder="请输入分组名称"
+          value={editGroupName}
+          onChange={(e) => setEditGroupName(e.target.value)}
+          maxLength={20}
+          autoFocus
+          disabled={editGroupLoading}
+        />
+      </Modal>
+
       {/* 添加好友弹窗 */}
       <Modal
         title="添加好友"
@@ -271,14 +643,14 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
           style={{ marginBottom: 16 }}
         />
         <div className="search-results">
-          {searchResults.map((user) => (
-            <div key={user.id} className="search-result-item">
-              <Avatar src={user.avatar} icon={<UserOutlined />} />
+          {searchResults.map((searchUser) => (
+            <div key={searchUser.id} className="search-result-item">
+              <Avatar src={getAvatarUrl(searchUser.avatar)} icon={<UserOutlined />} />
               <div className="search-result-info">
-                <div className="name">{user.nickname}</div>
-                <div className="username">@{user.username}</div>
+                <div className="name">{searchUser.nickname}</div>
+                <div className="username">@{searchUser.username}</div>
               </div>
-              <Button type="primary" size="small" onClick={() => handleAddFriend(user.id)}>
+              <Button type="primary" size="small" onClick={() => handleAddFriend(searchUser.id)}>
                 添加
               </Button>
             </div>
@@ -294,6 +666,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
         onOk={() => addGroupForm.submit()}
         okText="创建"
         cancelText="取消"
+        confirmLoading={createGroupLoading}
         centered
       >
         <Form form={addGroupForm} layout="vertical" onFinish={handleCreateGroup}>

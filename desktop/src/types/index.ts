@@ -70,6 +70,8 @@ export interface Message {
     filesize: number;
     mimeType?: string;
   };
+  mentionIds?: string[];
+  recalledAt?: string;
   createdAt: string;
 }
 

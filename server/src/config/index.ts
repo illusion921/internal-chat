@@ -35,7 +35,14 @@ export const config = {
   fileExpireDays: parseInt(process.env.FILE_EXPIRE_DAYS || '7', 10),
 
   // CORS
-  corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'],
+  corsOrigins: process.env.CORS_ORIGINS?.split(',') || [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://192.168.1.39:5173',
+    'http://192.168.1.39:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ],
 
   // 日志
   logLevel: process.env.LOG_LEVEL || 'info',

@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { config } from '../config/index.js';
+import { redisService } from '../services/redis.js';
 
 export interface JwtPayload {
   userId: string;
@@ -13,7 +15,13 @@ export interface JwtPayload {
 declare module 'fastify' {
   interface FastifyRequest {
     user?: JwtPayload;
+    sessionId?: string;
   }
+}
+
+// 生成 token 哈希
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }
 
 export async function authMiddleware(
@@ -43,8 +51,25 @@ export async function authMiddleware(
       });
     }
 
+    // 验证 JWT
     const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
+    
+    // 验证会话是否有效
+    const tokenHash = hashToken(token);
+    const session = await redisService.getSessionByToken(tokenHash);
+    
+    if (!session) {
+      return reply.status(401).send({
+        code: 10003,
+        message: '会话已失效，请重新登录',
+      });
+    }
+    
+    // 更新会话活动时间
+    await redisService.updateSessionActivity(session.sessionId);
+    
     request.user = decoded;
+    request.sessionId = session.sessionId;
     
     done();
   } catch (error) {
@@ -74,7 +99,15 @@ export async function optionalAuthMiddleware(
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
-      request.user = decoded;
+      
+      // 验证会话
+      const tokenHash = hashToken(token);
+      const session = await redisService.getSessionByToken(tokenHash);
+      
+      if (session) {
+        request.user = decoded;
+        request.sessionId = session.sessionId;
+      }
     }
     
     done();

@@ -1,8 +1,9 @@
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
-import { config } from '@src/config';
 import type { Message } from '@types/index';
+import { incrementUnread, sendBrowserNotification, requestNotificationPermission } from '@utils/notification';
+import { config } from '@src/config';
 
 let socket: Socket | null = null;
 
@@ -20,7 +21,13 @@ export function connectSocket() {
     return;
   }
 
-  socket = io(config.wsUrl, {
+  // 请求浏览器通知权限
+  requestNotificationPermission();
+
+  // 使用配置的服务器地址
+  const wsUrl = config.wsUrl || window.location.origin;
+  
+  socket = io(wsUrl, {
     auth: { token: accessToken },
     transports: ['websocket', 'polling'],
   });
@@ -52,6 +59,23 @@ export function connectSocket() {
         (c) => c.id === message.conversationId
       )?.unreadCount || 0;
       updateUnreadCount(message.conversationId, currentCount + 1);
+      
+      // 更新标签页未读提示
+      incrementUnread(1);
+      
+      // 发送浏览器通知（当页面不可见时）
+      if (document.visibilityState === 'hidden') {
+        const senderName = message.sender?.nickname || '用户';
+        let content = '发来一条消息';
+        if (message.msgType === 'text') {
+          content = message.content || content;
+        } else if (message.msgType === 'image') {
+          content = '[图片]';
+        } else if (message.msgType === 'file') {
+          content = '[文件]';
+        }
+        sendBrowserNotification(senderName, content);
+      }
     }
   });
 
@@ -122,6 +146,7 @@ export function sendMessage(data: {
   content?: string;
   fileId?: string;
   tempId?: string;
+  mentionIds?: string[];
 }) {
   if (!socket?.connected) {
     console.error('Socket not connected');
@@ -134,6 +159,20 @@ export function sendMessage(data: {
   });
 
   return true;
+}
+
+// 监听消息撤回事件
+export function onMessageRecall(callback: (data: { messageId: string; conversationId: string; recalledAt: string }) => void) {
+  if (!socket) {
+    console.error('Socket not initialized');
+    return null;
+  }
+
+  socket.on('message:recall', callback);
+  
+  return () => {
+    socket?.off('message:recall', callback);
+  };
 }
 
 export function sendTypingStart(conversationId: string, conversationType: 'private' | 'group') {

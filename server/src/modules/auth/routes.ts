@@ -1,11 +1,13 @@
 import { FastifyInstance } from 'fastify';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../../models/index.js';
 import { config } from '../../config/index.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
+import { redisService } from '../../services/redis.js';
 
 // 验证 schema
 const loginSchema = z.object({
@@ -20,6 +22,39 @@ const changePasswordSchema = z.object({
 
 // 登录失败计数器（内存存储，生产环境应使用 Redis）
 const loginAttempts = new Map<string, { count: number; lockUntil: number }>();
+
+// 最大并发会话数
+const MAX_SESSIONS = 5;
+
+// 生成 token 哈希
+function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+// 解析 User-Agent
+function parseUserAgent(userAgent: string): string {
+  if (!userAgent) return '未知设备';
+  
+  // 简单解析
+  if (userAgent.includes('Electron')) {
+    const match = userAgent.match(/Electron\/([\d.]+)/);
+    return `桌面客户端 ${match ? match[1] : ''}`.trim();
+  }
+  if (userAgent.includes('Chrome')) {
+    return 'Chrome 浏览器';
+  }
+  if (userAgent.includes('Firefox')) {
+    return 'Firefox 浏览器';
+  }
+  if (userAgent.includes('Safari')) {
+    return 'Safari 浏览器';
+  }
+  if (userAgent.includes('Edge')) {
+    return 'Edge 浏览器';
+  }
+  
+  return 'Web 浏览器';
+}
 
 export async function authRoutes(fastify: FastifyInstance) {
   // 登录
@@ -69,6 +104,21 @@ export async function authRoutes(fastify: FastifyInstance) {
       { expiresIn: config.jwtRefreshExpiresIn }
     );
 
+    // 获取设备和IP信息
+    const userAgent = request.headers['user-agent'] || '';
+    const deviceInfo = parseUserAgent(userAgent);
+    const ipAddress = request.ip || 'unknown';
+
+    // 创建会话
+    const tokenHash = hashToken(accessToken);
+    await redisService.createSession(
+      user.id, 
+      tokenHash, 
+      deviceInfo, 
+      ipAddress,
+      MAX_SESSIONS
+    );
+
     // 更新最后在线时间
     await prisma.user.update({
       where: { id: user.id },
@@ -112,6 +162,20 @@ export async function authRoutes(fastify: FastifyInstance) {
         { expiresIn: config.jwtExpiresIn }
       );
 
+      // 为新 token 创建会话
+      const userAgent = request.headers['user-agent'] || '';
+      const deviceInfo = parseUserAgent(userAgent);
+      const ipAddress = request.ip || 'unknown';
+      const tokenHash = hashToken(accessToken);
+      
+      await redisService.createSession(
+        decoded.userId, 
+        tokenHash, 
+        deviceInfo, 
+        ipAddress,
+        MAX_SESSIONS
+      );
+
       return reply.send({
         code: 0,
         data: { accessToken },
@@ -148,19 +212,86 @@ export async function authRoutes(fastify: FastifyInstance) {
       data: { passwordHash: hashedPassword },
     });
 
+    // 清除所有会话，强制重新登录
+    await redisService.deleteAllUserSessions(userId);
+
     return reply.send({
       code: 0,
-      message: '密码修改成功',
+      message: '密码修改成功，请重新登录',
     });
   });
 
   // 登出
   fastify.post('/logout', { preHandler: authMiddleware }, async (request, reply) => {
-    // JWT 无状态，客户端删除 token 即可
-    // 如需服务端失效，可维护 token 黑名单（Redis）
+    const userId = request.user!.userId;
+    const authHeader = request.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const tokenHash = hashToken(token);
+      await redisService.deleteSessionByToken(tokenHash);
+    }
+    
     return reply.send({
       code: 0,
       message: '登出成功',
+    });
+  });
+
+  // 获取登录设备列表
+  fastify.get('/sessions', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const sessions = await redisService.getUserSessions(userId);
+    
+    return reply.send({
+      code: 0,
+      data: sessions,
+    });
+  });
+
+  // 踢出指定会话
+  fastify.delete('/sessions/:sessionId', { preHandler: authMiddleware }, async (request, reply) => {
+    const { sessionId } = request.params as { sessionId: string };
+    const userId = request.user!.userId;
+    
+    // 验证会话属于当前用户
+    const session = await redisService.getSession(sessionId);
+    if (!session || session.userId !== userId) {
+      throw new AppError('会话不存在', 40401, 404);
+    }
+    
+    await redisService.deleteSession(sessionId);
+    
+    return reply.send({
+      code: 0,
+      message: '已踢出该设备',
+    });
+  });
+
+  // 踢出所有其他会话
+  fastify.post('/sessions/kick-others', { preHandler: authMiddleware }, async (request, reply) => {
+    const userId = request.user!.userId;
+    const authHeader = request.headers.authorization;
+    
+    let currentSessionId: string | null = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const tokenHash = hashToken(token);
+      const currentSession = await redisService.getSessionByToken(tokenHash);
+      currentSessionId = currentSession?.sessionId || null;
+    }
+    
+    const sessions = await redisService.getUserSessions(userId);
+    
+    for (const session of sessions) {
+      if (session.sessionId !== currentSessionId) {
+        await redisService.deleteSession(session.sessionId);
+      }
+    }
+    
+    return reply.send({
+      code: 0,
+      message: '已踢出所有其他设备',
     });
   });
 }

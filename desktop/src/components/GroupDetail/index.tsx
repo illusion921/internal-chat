@@ -245,7 +245,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ visible, groupId, onClose, on
               avatar={
                 <Avatar
                   size={40}
-                  src={member.user?.avatar}
+                  src={getAvatarUrl(member.user?.avatar)}
                   icon={<UserOutlined />}
                   style={{ borderRadius: 4 }}
                 />
