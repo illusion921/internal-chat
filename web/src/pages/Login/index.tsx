@@ -4,7 +4,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { authApi } from '@services/api';
 import { connectSocket } from '@services/socket';
-import type { User } from '@types/index';
+import type { User } from '../../types/index';
 import './Login.css';
 
 interface LoginForm {

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Friendship, FriendRequest, Group, GroupMember } from '@types/index';
+import type { Friendship, FriendRequest, Group, GroupMember } from '../types/index';
 
 interface ContactState {
   // 状态

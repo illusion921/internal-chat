@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
-import type { Message } from '@types/index';
+import type { Message } from '../types/index';
 import { incrementUnread, sendBrowserNotification, requestNotificationPermission } from '@utils/notification';
 
 let socket: Socket | null = null;

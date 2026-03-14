@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Conversation, Message } from '@types/index';
+import type { Conversation, Message } from '../types/index';
 import { clearUnread } from '@utils/notification';
 
 interface ChatState {

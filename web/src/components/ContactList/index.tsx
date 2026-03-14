@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message, Dropdown, Collapse } from 'antd';
+import { Avatar, Badge, Tabs, Button, Modal, Form, Input, Select, message, Dropdown } from 'antd';
 import { UserOutlined, TeamOutlined, PlusOutlined, UserAddOutlined, SearchOutlined, FolderAddOutlined, EditOutlined, DeleteOutlined, DownOutlined, RightOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
 import { useContactStore } from '@stores/index';
 import { friendApi, groupApi, userApi } from '@services/api';
-import type { Conversation, Friendship, Group, User } from '@types/index';
+import type { Conversation, Friendship, User } from '../../types/index';
 import './ContactList.css';
 
 interface FriendGroup {
@@ -22,7 +22,7 @@ interface ContactListProps {
 const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const { user } = useAuthStore();
   const { conversations, setCurrentConversation, currentConversation } = useChatStore();
-  const { friends, groups, friendRequests, setFriends, setFriendRequests, setGroups } = useContactStore();
+  const { friends, groups, friendRequests, setFriendRequests, setGroups } = useContactStore();
   
   const [contactTab, setContactTab] = useState<'friends' | 'groups' | 'requests'>('friends');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -328,7 +328,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
           </div>
           <div className="contact-item-info">
             <div className="contact-item-name">{friend.remark || friend.nickname}</div>
-            <div className="contact-item-signature">{friend.signature || '暂无签名'}</div>
+            <div className="contact-item-signature">{(friend as any).signature || '暂无签名'}</div>
           </div>
         </div>
       </Dropdown>
@@ -385,7 +385,7 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 </span>
               </div>
               <div className="chat-item-preview">
-                {formatMessagePreview(conv.lastMessage) || conv.target.signature || '暂无消息'}
+                {formatMessagePreview(conv.lastMessage) || (conv.target as any).signature || '暂无消息'}
               </div>
             </div>
           </div>

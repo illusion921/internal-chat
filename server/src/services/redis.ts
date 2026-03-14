@@ -1,9 +1,8 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { config } from '../config/index.js';
 
 export const redis = new Redis(config.redisUrl, {
   maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
   lazyConnect: true,
 });
 
@@ -11,7 +10,7 @@ redis.on('connect', () => {
   console.log('Redis connected');
 });
 
-redis.on('error', (err) => {
+redis.on('error', (err: Error) => {
   console.error('Redis error:', err);
 });
 
@@ -88,7 +87,7 @@ export const redisService = {
   async getAndClearOfflineMessages(userId: string): Promise<any[]> {
     const messages = await redis.lrange(RedisKeys.offlineMessages(userId), 0, -1);
     await redis.del(RedisKeys.offlineMessages(userId));
-    return messages.map(m => JSON.parse(m));
+    return messages.map((m: string) => JSON.parse(m));
   },
 
   // 增加未读数

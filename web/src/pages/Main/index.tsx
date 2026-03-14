@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Dropdown, Avatar, Badge, Modal, Input, Menu, message, Spin, Popover } from 'antd';
+import { Layout, Avatar, Badge, Modal, Input, message, Spin, Popover } from 'antd';
 import {
   MessageOutlined,
   TeamOutlined,
@@ -187,7 +187,7 @@ const Main: React.FC = () => {
           <Input placeholder="搜索" className="search-input" />
         </div>
         <div className="list-content">
-          <ContactList activeTab={activeTab} />
+          <ContactList activeTab={activeTab === 'admin' ? 'chat' : activeTab} />
         </div>
       </Sider>
 

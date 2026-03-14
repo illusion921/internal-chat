@@ -6,7 +6,6 @@ import {
   MessageOutlined,
   FileOutlined,
   DeleteOutlined,
-  SearchOutlined,
   ReloadOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';

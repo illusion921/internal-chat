@@ -4,7 +4,6 @@ import { UserOutlined, UploadOutlined, DesktopOutlined, MobileOutlined, TabletOu
 import { useAuthStore } from '@stores/authStore';
 import { authApi, userApi } from '@services/api';
 import axios from 'axios';
-import type { UploadFile } from 'antd/es/upload/interface';
 
 interface SettingsProps {
   visible: boolean;

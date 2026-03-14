@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Avatar, List, Button, Input, Select, message, Popconfirm, Tag } from 'antd';
+import { Modal, Avatar, List, Button, Select, message, Popconfirm, Tag } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
   CrownOutlined,
   SafetyOutlined,
-  UserDeleteOutlined,
   PlusOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
 import { groupApi, friendApi } from '@services/api';
-import type { Group } from '@types/index';
+import type { Group, GroupMember } from '../../types/index';
 import './GroupInfo.css';
 
 interface GroupInfoProps {
@@ -21,17 +20,9 @@ interface GroupInfoProps {
   onQuit?: () => void;
 }
 
-interface GroupMember {
-  userId: string;
-  role: 'owner' | 'admin' | 'member';
-  nickname: string;
-  user: {
-    id: string;
-    nickname: string;
-    avatar: string | null;
-    status: string;
-  };
-  joinedAt: string;
+interface GroupWithMembers extends Group {
+  members: GroupMember[];
+  isMember: boolean;
 }
 
 const GroupInfo: React.FC<GroupInfoProps> = ({
@@ -41,8 +32,8 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
   onClose,
   onQuit,
 }) => {
-  const [group, setGroup] = useState<Group & { members: GroupMember[]; isMember: boolean } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [group, setGroup] = useState<GroupWithMembers | null>(null);
+  const [, setLoading] = useState(false);
   const [inviteVisible, setInviteVisible] = useState(false);
   const [friends, setFriends] = useState<any[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);

@@ -30,7 +30,7 @@ export async function fileRoutes(fastify: FastifyInstance) {
       const token = authHeader.substring(7);
       
       try {
-        const decoded = jwt.verify(token, config.jwtSecret) as { userId: string; username: string };
+        const decoded = jwt.verify(token, config.jwtSecret) as { userId: string; username: string; iat: number; exp: number };
         request.user = decoded;
       } catch {
         return reply.status(401).send({

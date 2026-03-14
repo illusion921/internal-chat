@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import type { StringValue } from 'ms';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,8 +27,8 @@ export const config = {
 
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'your-super-secret-key',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+  jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '7d') as StringValue,
+  jwtRefreshExpiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '30d') as StringValue,
 
   // 文件存储
   fileStoragePath: path.resolve(process.env.FILE_STORAGE_PATH || './uploads'),

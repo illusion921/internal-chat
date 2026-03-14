@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Avatar, List, Button, Input, Select, message, Popconfirm, Tag, Divider } from 'antd';
+import { Modal, Avatar, List, Button, Select, message, Popconfirm, Tag, Divider } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
@@ -8,11 +8,10 @@ import {
   CrownOutlined,
   SafetyOutlined,
   LogoutOutlined,
-  CloseOutlined,
 } from '@ant-design/icons';
 import { groupApi, friendApi } from '@services/api';
 import { useAuthStore } from '@stores/authStore';
-import type { GroupMember } from '@types/index';
+import type { GroupMember } from '../../types/index';
 import './GroupDetail.css';
 
 interface GroupDetailProps {
@@ -131,7 +130,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ visible, groupId, onClose, on
   // 解散群组
   const handleDismiss = async () => {
     try {
-      const response: any = await groupApi.dismiss(groupId);
+      const response: any = await (groupApi as any).dismiss(groupId);
       if (response.code === 0) {
         message.success('群组已解散');
         onClose();
@@ -225,7 +224,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ visible, groupId, onClose, on
                       移除
                     </Button>
                   </Popconfirm>,
-                ]
+                ] as React.ReactNode[]
               ) : isAdmin && member.role === 'member' ? (
                 [
                   <Popconfirm
@@ -237,8 +236,8 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ visible, groupId, onClose, on
                       移除
                     </Button>
                   </Popconfirm>,
-                ]
-              ) : null
+                ] as React.ReactNode[]
+              ) : undefined
             }
           >
             <List.Item.Meta
