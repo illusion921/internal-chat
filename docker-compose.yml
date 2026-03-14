@@ -21,8 +21,9 @@ services:
       - JWT_REFRESH_EXPIRES_IN=30d
       - FILE_STORAGE_PATH=/app/uploads
       - FILE_MAX_SIZE=524288000
-      - CORS_ORIGINS=http://localhost,http://localhost:80,http://192.168.1.39,http://192.168.1.39:80
+      - CORS_ORIGINS=http://localhost,http://localhost:80,http://192.168.1.39,http://192.168.1.39:80,http://${SERVER_IP:-localhost},http://${SERVER_IP:-localhost}:80
       - LOG_LEVEL=info
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
     volumes:
       - uploads-data:/app/uploads
     depends_on:
@@ -33,7 +34,7 @@ services:
     networks:
       - internal-chat-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
