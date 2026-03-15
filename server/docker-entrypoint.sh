@@ -32,7 +32,7 @@ fi
 echo "Waiting for Redis..."
 max_attempts=10
 attempt=0
-until redis-cli -h redis ping | grep -q PONG; do
+until nc -z redis 6379 2>/dev/null; do
   attempt=$((attempt + 1))
   if [ $attempt -ge $max_attempts ]; then
     echo "Redis is unavailable after $max_attempts attempts, exiting..."

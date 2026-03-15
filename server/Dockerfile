@@ -32,6 +32,7 @@ RUN apk add --no-cache \
     openssl \
     postgresql-client \
     curl \
+    netcat-openbsd \
     && rm -rf /var/cache/apk/*
 
 # 复制必要文件
