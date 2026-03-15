@@ -3,11 +3,16 @@ import { useAuthStore } from '@stores/authStore';
 import { config as appConfig } from '@src/config';
 
 const api = axios.create({
-  baseURL: appConfig.apiBaseUrl,
   timeout: 300000, // 5分钟，支持大文件上传
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// 动态获取 baseURL
+api.interceptors.request.use((config) => {
+  config.baseURL = appConfig.apiBaseUrl;
+  return config;
 });
 
 // 请求拦截器
