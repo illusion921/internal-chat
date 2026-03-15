@@ -1,8 +1,9 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '@stores/authStore';
+import { config as appConfig } from '@src/config';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: appConfig.apiBaseUrl,
   timeout: 300000, // 5分钟，支持大文件上传
   headers: {
     'Content-Type': 'application/json',
@@ -47,7 +48,7 @@ api.interceptors.response.use(
       
       if (refreshToken) {
         try {
-          const response: any = await axios.post('/api/auth/refresh', {
+          const response: any = await axios.post(`${appConfig.apiBaseUrl}/auth/refresh`, {
             refreshToken,
           });
           
@@ -212,5 +213,5 @@ export const fileApi = {
   
   getInfo: (id: string) => api.get(`/files/${id}`),
   
-  getDownloadUrl: (id: string) => `/api/files/${id}/download`,
+  getDownloadUrl: (id: string) => `${appConfig.apiBaseUrl}/files/${id}/download`,
 };
