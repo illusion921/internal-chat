@@ -25,7 +25,11 @@ const Login: React.FC = () => {
   }, []);
 
   const handleSaveConfig = () => {
-    const url = serverUrl.trim().replace(/\/$/, '');
+    let url = serverUrl.trim().replace(/\/$/, '');
+    // 移除末尾的 /api 如果用户误输入了
+    if (url.endsWith('/api')) {
+      url = url.slice(0, -4);
+    }
     saveUserConfig({
       apiBaseUrl: `${url}/api`,
       wsUrl: url.replace(/^http/, 'ws'),
@@ -139,12 +143,12 @@ const Login: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <p style={{ marginBottom: 8, color: '#666' }}>服务器地址：</p>
           <Input
-            placeholder="http://192.168.1.39:3001"
+            placeholder="http://192.168.1.39"
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
           />
           <p style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-            请输入服务器地址，例如：http://192.168.1.39:3001
+            请输入服务器地址，例如：http://192.168.1.39（无需添加 /api）
           </p>
         </div>
       </Modal>
