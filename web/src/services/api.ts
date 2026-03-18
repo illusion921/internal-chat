@@ -1,12 +1,18 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '@stores/authStore';
+import { getApiBaseUrl } from '@/config';
 
 const api = axios.create({
-  baseURL: '/api',
   timeout: 300000, // 5分钟，支持大文件上传
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// 动态获取 baseURL
+api.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
+  return config;
 });
 
 // 请求拦截器
@@ -212,5 +218,5 @@ export const fileApi = {
   
   getInfo: (id: string) => api.get(`/files/${id}`),
   
-  getDownloadUrl: (id: string) => `/api/files/${id}/download`,
+  getDownloadUrl: (id: string) => `${getApiBaseUrl()}/files/${id}/download`,
 };

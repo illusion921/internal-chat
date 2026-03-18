@@ -45,28 +45,53 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
       },
     });
 
+    // 使用 Map 按好友 ID 去重，优先使用有 groupId 的记录
+    const friendMap = new Map<string, any>();
+
+    allFriendships.forEach((f) => {
+      // 确定好友信息
+      const isUserOwner = f.userId === userId;
+      const friendInfo = isUserOwner ? f.friend : f.user;
+      const friendId = friendInfo.id;
+      const groupId = isUserOwner ? f.groupId : null;
+
+      // 如果好友已经在 Map 中，优先保留有 groupId 的记录
+      if (friendMap.has(friendId)) {
+        const existing = friendMap.get(friendId);
+        // 如果新记录有分组且旧记录没有分组，则更新
+        if (groupId && !existing.groupId) {
+          friendMap.set(friendId, {
+            id: f.id,
+            friendId,
+            groupId,
+            nickname: friendInfo.nickname,
+            avatar: friendInfo.avatar,
+            signature: friendInfo.signature,
+            status: friendInfo.status,
+            remark: f.remark,
+          });
+        }
+      } else {
+        friendMap.set(friendId, {
+          id: f.id,
+          friendId,
+          groupId,
+          nickname: friendInfo.nickname,
+          avatar: friendInfo.avatar,
+          signature: friendInfo.signature,
+          status: friendInfo.status,
+          remark: f.remark,
+        });
+      }
+    });
+
     // 按分组归类好友
     const groupedFriends = new Map<string, any[]>();
     const ungroupedFriends: any[] = [];
 
-    allFriendships.forEach((f) => {
-      // 确定好友信息（如果我是 userId，好友是 friend；如果我是 friendId，好友是 user）
-      const isUserOwner = f.userId === userId;
-      const friendInfo = isUserOwner ? f.friend : f.user;
+    friendMap.forEach((friend) => {
+      const { groupId, ...friendData } = friend;
       
-      const friendData = {
-        id: f.id,
-        friendId: friendInfo.id,
-        nickname: friendInfo.nickname,
-        avatar: friendInfo.avatar,
-        signature: friendInfo.signature,
-        status: friendInfo.status,
-        remark: f.remark,
-      };
-
-      // 只有作为 userId 的记录才有 groupId
-      const groupId = isUserOwner ? f.groupId : null;
-
       if (groupId) {
         if (!groupedFriends.has(groupId)) {
           groupedFriends.set(groupId, []);
@@ -194,12 +219,15 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
     const { groupId } = body;
     const userId = request.user!.userId;
 
-    // 验证好友关系
+    // 验证好友关系（双向检查）
     const friendship = await prisma.friendship.findFirst({
       where: {
         id,
-        userId,
         status: 'accepted',
+        OR: [
+          { userId },
+          { friendId: userId },
+        ],
       },
     });
 
@@ -218,11 +246,35 @@ export async function friendGroupRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // 更新分组
-    await prisma.friendship.update({
-      where: { id },
-      data: { groupId },
+    // 确定好友ID
+    const friendId = friendship.userId === userId ? friendship.friendId : friendship.userId;
+
+    // 检查当前用户是否有对应的 friendship 记录
+    const myFriendship = await prisma.friendship.findFirst({
+      where: {
+        userId,
+        friendId,
+        status: 'accepted',
+      },
     });
+
+    if (myFriendship) {
+      // 更新现有记录
+      await prisma.friendship.update({
+        where: { id: myFriendship.id },
+        data: { groupId },
+      });
+    } else {
+      // 创建一条新的记录用于分组管理
+      await prisma.friendship.create({
+        data: {
+          userId,
+          friendId,
+          status: 'accepted',
+          groupId,
+        },
+      });
+    }
 
     return reply.send({
       code: 0,

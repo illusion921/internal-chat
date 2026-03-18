@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Form, Input, Button, message, Modal, Tooltip } from 'antd';
+import { UserOutlined, LockOutlined, SettingOutlined } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { authApi } from '@services/api';
 import { connectSocket } from '@services/socket';
+import { config, loadUserConfig, saveUserConfig } from '@/config';
 import type { User } from '../../types/index';
 import './Login.css';
 
@@ -14,7 +15,37 @@ interface LoginForm {
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [configVisible, setConfigVisible] = useState(false);
+  const [serverUrl, setServerUrl] = useState('');
   const { setAuth } = useAuthStore();
+
+  useEffect(() => {
+    loadUserConfig();
+    // 显示当前配置的服务器地址（去掉 /api 后缀）
+    const baseUrl = config.apiBaseUrl || '';
+    setServerUrl(baseUrl.replace(/\/api$/, ''));
+  }, []);
+
+  const handleSaveConfig = () => {
+    let url = serverUrl.trim().replace(/\/$/, '');
+    // 移除末尾的 /api 如果用户误输入了
+    if (url.endsWith('/api')) {
+      url = url.slice(0, -4);
+    }
+    
+    // 验证 URL 格式
+    if (url && !url.match(/^https?:\/\/.+/)) {
+      message.error('服务器地址格式不正确，应以 http:// 或 https:// 开头');
+      return;
+    }
+    
+    saveUserConfig({
+      apiBaseUrl: url ? `${url}/api` : '',
+      wsUrl: url || '',
+    });
+    setConfigVisible(false);
+    message.success('服务器地址已保存');
+  };
 
   const onFinish = async (values: LoginForm) => {
     setLoading(true);
@@ -30,7 +61,7 @@ const Login: React.FC = () => {
         message.error(response.message || '登录失败');
       }
     } catch (error: any) {
-      message.error(error?.message || '登录失败，请检查网络');
+      message.error(error?.message || '登录失败，请检查网络或服务器地址');
     } finally {
       setLoading(false);
     }
@@ -39,6 +70,17 @@ const Login: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-box">
+        {/* 服务器设置按钮 */}
+        <div className="login-settings">
+          <Tooltip title="服务器设置">
+            <Button
+              type="text"
+              icon={<SettingOutlined />}
+              onClick={() => setConfigVisible(true)}
+            />
+          </Tooltip>
+        </div>
+
         {/* Logo区域 */}
         <div className="login-header">
           <div className="login-logo">
@@ -96,6 +138,31 @@ const Login: React.FC = () => {
           <p>企业内部通讯系统 · 安全可靠</p>
         </div>
       </div>
+
+      {/* 服务器设置弹窗 */}
+      <Modal
+        title="服务器设置"
+        open={configVisible}
+        onOk={handleSaveConfig}
+        onCancel={() => setConfigVisible(false)}
+        okText="保存"
+        cancelText="取消"
+      >
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', marginBottom: 8 }}>服务器地址：</label>
+          <Input
+            placeholder="http://192.168.1.39:3002"
+            value={serverUrl}
+            onChange={(e) => setServerUrl(e.target.value)}
+          />
+          <div style={{ color: '#999', fontSize: 12, marginTop: 8 }}>
+            请输入服务器地址，例如：http://192.168.1.39:3002（无需添加 /api）
+          </div>
+          <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+            留空则使用默认配置（通过代理访问）
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

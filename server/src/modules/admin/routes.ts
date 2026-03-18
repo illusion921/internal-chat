@@ -199,6 +199,41 @@ export async function adminRoutes(fastify: FastifyInstance) {
     });
   });
 
+  // 重置用户密码
+  fastify.put('/users/:id/password', { preHandler: authMiddleware }, async (request, reply) => {
+    const adminId = request.user!.userId;
+    await checkAdmin(adminId);
+
+    const { id } = request.params as { id: string };
+    const body = z.object({
+      password: z.string().min(6).max(50),
+    }).parse(request.body);
+
+    // 检查用户是否存在
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, username: true },
+    });
+
+    if (!user) {
+      throw new AppError('用户不存在', 40401, 404);
+    }
+
+    // 加密新密码
+    const passwordHash = await bcrypt.hash(body.password, 10);
+
+    // 更新密码
+    await prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+    });
+
+    return reply.send({
+      code: 0,
+      message: '密码重置成功',
+    });
+  });
+
   // 获取群组列表
   fastify.get('/groups', { preHandler: authMiddleware }, async (request, reply) => {
     const userId = request.user!.userId;

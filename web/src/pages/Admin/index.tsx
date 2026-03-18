@@ -8,6 +8,7 @@ import {
   DeleteOutlined,
   ReloadOutlined,
   UserAddOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -71,6 +72,12 @@ const Admin: React.FC = () => {
   const [addUserModalVisible, setAddUserModalVisible] = useState(false);
   const [addUserLoading, setAddUserLoading] = useState(false);
   const [addUserForm] = Form.useForm();
+  
+  // 重置密码相关状态
+  const [resetPasswordModalVisible, setResetPasswordModalVisible] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordForm] = Form.useForm();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
   useEffect(() => {
     loadStats();
@@ -182,6 +189,35 @@ const Admin: React.FC = () => {
     }
   };
 
+  // 重置密码
+  const handleResetPassword = async (values: { password: string }) => {
+    if (!selectedUser) return;
+    
+    setResetPasswordLoading(true);
+    try {
+      const response = await axios.put(`/api/admin/users/${selectedUser.id}/password`, values, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.data.code === 0) {
+        message.success('密码重置成功');
+        setResetPasswordModalVisible(false);
+        resetPasswordForm.resetFields();
+        setSelectedUser(null);
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.message || '重置失败');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
+  // 打开重置密码弹窗
+  const openResetPasswordModal = (user: User) => {
+    setSelectedUser(user);
+    resetPasswordForm.resetFields();
+    setResetPasswordModalVisible(true);
+  };
+
   const userColumns = [
     {
       title: '头像',
@@ -232,16 +268,25 @@ const Admin: React.FC = () => {
       title: '操作',
       key: 'action',
       render: (_: any, record: User) => (
-        <Popconfirm
-          title="确定要删除该用户吗？"
-          onConfirm={() => handleDeleteUser(record.id)}
-          okText="确定"
-          cancelText="取消"
-        >
-          <Button type="link" danger icon={<DeleteOutlined />}>
-            删除
+        <Space>
+          <Button
+            type="link"
+            icon={<KeyOutlined />}
+            onClick={() => openResetPasswordModal(record)}
+          >
+            重置密码
           </Button>
-        </Popconfirm>
+          <Popconfirm
+            title="确定要删除该用户吗？"
+            onConfirm={() => handleDeleteUser(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -478,6 +523,41 @@ const Admin: React.FC = () => {
             rules={[{ max: 50, message: '昵称最多 50 个字符' }]}
           >
             <Input placeholder="不填则使用用户名" maxLength={50} disabled={addUserLoading} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 重置密码弹窗 */}
+      <Modal
+        title={`重置密码 - ${selectedUser?.nickname || selectedUser?.username || ''}`}
+        open={resetPasswordModalVisible}
+        onCancel={() => {
+          if (!resetPasswordLoading) {
+            setResetPasswordModalVisible(false);
+            resetPasswordForm.resetFields();
+            setSelectedUser(null);
+          }
+        }}
+        onOk={() => resetPasswordForm.submit()}
+        okText="确认重置"
+        cancelText="取消"
+        confirmLoading={resetPasswordLoading}
+        centered
+      >
+        <Form
+          form={resetPasswordForm}
+          layout="vertical"
+          onFinish={handleResetPassword}
+        >
+          <Form.Item
+            name="password"
+            label="新密码"
+            rules={[
+              { required: true, message: '请输入新密码' },
+              { min: 6, max: 50, message: '密码长度 6-50 个字符' },
+            ]}
+          >
+            <Input.Password placeholder="请输入新密码" maxLength={50} autoFocus disabled={resetPasswordLoading} />
           </Form.Item>
         </Form>
       </Modal>

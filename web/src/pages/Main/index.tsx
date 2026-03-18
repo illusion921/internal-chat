@@ -8,6 +8,7 @@ import {
   LogoutOutlined,
   DashboardOutlined,
   ReloadOutlined,
+  UserAddOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
@@ -17,6 +18,7 @@ import { disconnectSocket, connectSocket } from '@services/socket';
 import { initTitleNotification } from '@utils/notification';
 import ContactList from '@components/ContactList';
 import ChatWindow from '@components/ChatWindow';
+import FriendRequests from '@components/FriendRequests';
 import Settings from '@pages/Settings';
 import Admin from '@pages/Admin';
 import './Main.css';
@@ -25,15 +27,18 @@ const { Sider, Content } = Layout;
 
 const Main: React.FC = () => {
   const { user, logout } = useAuthStore();
-  const { setConversations } = useChatStore();
+  const { conversations, setConversations } = useChatStore();
   const { setFriends, setGroups, setFriendRequests, friendRequests } = useContactStore();
   
-  const [activeTab, setActiveTab] = useState<'chat' | 'contact' | 'admin'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'contact' | 'requests' | 'admin'>('chat');
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   
   // 检查是否是管理员
   const isAdmin = user?.username === 'admin';
+  
+  // 计算总未读消息数
+  const totalUnread = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
 
   useEffect(() => {
     // 初始化标题通知
@@ -144,21 +149,35 @@ const Main: React.FC = () => {
           <div
             className={`nav-item ${activeTab === 'chat' ? 'active' : ''}`}
             onClick={() => setActiveTab('chat')}
+            title="消息"
           >
-            <MessageOutlined style={{ fontSize: 22 }} />
+            <div className="nav-icon-wrapper">
+              <MessageOutlined style={{ fontSize: 22 }} />
+              {totalUnread > 0 && <span className="nav-badge" />}
+            </div>
           </div>
           <div
             className={`nav-item ${activeTab === 'contact' ? 'active' : ''}`}
             onClick={() => setActiveTab('contact')}
+            title="联系人"
           >
-            <Badge count={friendRequests.length} size="small" offset={[-2, -2]}>
-              <TeamOutlined style={{ fontSize: 22 }} />
-            </Badge>
+            <TeamOutlined style={{ fontSize: 22 }} />
+          </div>
+          <div
+            className={`nav-item ${activeTab === 'requests' ? 'active' : ''}`}
+            onClick={() => setActiveTab('requests')}
+            title="好友申请"
+          >
+            <div className="nav-icon-wrapper">
+              <UserAddOutlined style={{ fontSize: 22 }} />
+              {friendRequests.length > 0 && <span className="nav-badge" />}
+            </div>
           </div>
           {isAdmin && (
             <div
               className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
               onClick={() => setActiveTab('admin')}
+              title="系统管理"
             >
               <DashboardOutlined style={{ fontSize: 22 }} />
             </div>
@@ -182,7 +201,7 @@ const Main: React.FC = () => {
       </Sider>
 
       {/* 会话列表 */}
-      <Sider className="list-sider">
+      <Sider className="list-sider" style={{ display: activeTab === 'requests' ? 'none' : undefined }}>
         <div className="list-header">
           <Input placeholder="搜索" className="search-input" />
         </div>
@@ -191,9 +210,15 @@ const Main: React.FC = () => {
         </div>
       </Sider>
 
-      {/* 聊天窗口或管理页面 */}
+      {/* 聊天窗口或管理页面或好友申请 */}
       <Content className="chat-content">
-        {activeTab === 'admin' ? <Admin /> : <ChatWindow />}
+        {activeTab === 'admin' ? (
+          <Admin />
+        ) : activeTab === 'requests' ? (
+          <FriendRequests />
+        ) : (
+          <ChatWindow />
+        )}
       </Content>
 
       <Settings visible={settingsVisible} onClose={() => setSettingsVisible(false)} />

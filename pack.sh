@@ -42,6 +42,7 @@ echo -e "\n${YELLOW}[4/5] 复制配置文件...${NC}"
 cp docker-compose.yml "${OUTPUT_DIR}/"
 cp deploy.sh "${OUTPUT_DIR}/"
 cp DEPLOY.md "${OUTPUT_DIR}/"
+cp server/init-db.sql "${OUTPUT_DIR}/"
 
 # 创建环境变量模板
 cat > "${OUTPUT_DIR}/.env.example" << 'EOF'
@@ -53,6 +54,12 @@ JWT_SECRET=change_this_secret
 
 # 服务器 IP（部署时填写）
 SERVER_IP=192.168.1.100
+
+# 管理员账号（可选，默认 admin）
+ADMIN_USERNAME=admin
+
+# 管理员密码（可选，默认 admin123）
+ADMIN_PASSWORD=admin123
 EOF
 
 # 创建离线部署脚本
@@ -67,6 +74,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# 默认管理员账号
 ADMIN_USER="admin"
 ADMIN_PASS="admin123"
 
@@ -106,21 +114,35 @@ if [ -z "$JWT_SECRET" ]; then
     JWT_SECRET=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)
 fi
 
-echo -e "\n${YELLOW}[1/4] 加载 Docker 镜像...${NC}"
+# 获取管理员账号
+read -p "请输入管理员账号 (直接回车使用 admin): " INPUT_ADMIN_USER
+if [ -n "$INPUT_ADMIN_USER" ]; then
+    ADMIN_USER="$INPUT_ADMIN_USER"
+fi
+
+# 获取管理员密码
+read -p "请输入管理员密码 (直接回车使用 admin123): " INPUT_ADMIN_PASS
+if [ -n "$INPUT_ADMIN_PASS" ]; then
+    ADMIN_PASS="$INPUT_ADMIN_PASS"
+fi
+
+echo -e "\n${YELLOW}[1/3] 加载 Docker 镜像...${NC}"
 docker load -i images.tar
 
-echo -e "\n${YELLOW}[2/4] 创建配置文件...${NC}"
+echo -e "\n${YELLOW}[2/3] 创建配置文件...${NC}"
 cat > .env << EOF
 POSTGRES_PASSWORD=${POSTGRES_PASS}
 JWT_SECRET=${JWT_SECRET}
 SERVER_IP=${SERVER_IP}
+ADMIN_USERNAME=${ADMIN_USER}
+ADMIN_PASSWORD=${ADMIN_PASS}
 EOF
 
-echo -e "\n${YELLOW}[3/4] 启动服务...${NC}"
+echo -e "\n${YELLOW}[3/3] 启动服务...${NC}"
 docker compose up -d
 
 echo -e "${YELLOW}等待服务启动...${NC}"
-sleep 15
+sleep 20
 
 # 检查服务状态
 if docker compose ps | grep -q "Up"; then
@@ -131,18 +153,9 @@ else
     exit 1
 fi
 
-echo -e "\n${YELLOW}[4/4] 创建管理员账号...${NC}"
-sleep 5
-
-# 生成密码哈希
-PASSWORD_HASH=$(docker exec internal-chat-server node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('${ADMIN_PASS}', 10));" 2>/dev/null)
-
-# 创建管理员
-docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "
-    INSERT INTO users (id, username, password_hash, nickname, status, created_at, updated_at) 
-    VALUES (gen_random_uuid(), '${ADMIN_USER}', '${PASSWORD_HASH}', '管理员', 'online', NOW(), NOW())
-    ON CONFLICT (username) DO NOTHING;
-" 2>/dev/null || echo "用户可能已存在"
+# 等待初始化完成
+echo -e "${YELLOW}等待数据库初始化...${NC}"
+sleep 10
 
 echo -e "\n${GREEN}========================================${NC}"
 echo -e "${GREEN}  安装完成!${NC}"
@@ -165,6 +178,16 @@ INSTALL_EOF
 chmod +x "${OUTPUT_DIR}/install.sh"
 
 echo -e "\n${YELLOW}[5/5] 打包完成...${NC}"
+
+# 复制客户端到输出目录
+if [ -d "${PROJECT_DIR}/desktop/release" ]; then
+    echo -e "\n${YELLOW}复制桌面客户端...${NC}"
+    mkdir -p "${OUTPUT_DIR}/clients"
+    cp ${PROJECT_DIR}/desktop/release/*.AppImage "${OUTPUT_DIR}/clients/" 2>/dev/null || true
+    cp ${PROJECT_DIR}/desktop/release/*.deb "${OUTPUT_DIR}/clients/" 2>/dev/null || true
+    cp ${PROJECT_DIR}/desktop/release/*.zip "${OUTPUT_DIR}/clients/" 2>/dev/null || true
+    echo -e "${GREEN}桌面客户端已复制到 clients/ 目录${NC}"
+fi
 
 # 计算文件大小
 IMAGES_SIZE=$(du -h "${OUTPUT_DIR}/images.tar" | cut -f1)

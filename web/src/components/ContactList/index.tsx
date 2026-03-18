@@ -22,9 +22,9 @@ interface ContactListProps {
 const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
   const { user } = useAuthStore();
   const { conversations, setCurrentConversation, currentConversation } = useChatStore();
-  const { friends, groups, friendRequests, setFriendRequests, setGroups } = useContactStore();
+  const { friends, groups, setGroups } = useContactStore();
   
-  const [contactTab, setContactTab] = useState<'friends' | 'groups' | 'requests'>('friends');
+  const [contactTab, setContactTab] = useState<'friends' | 'groups'>('friends');
   const [searchResults, setSearchResults] = useState<User[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [addFriendVisible, setAddFriendVisible] = useState(false);
@@ -205,22 +205,6 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
       }
     } catch (error: any) {
       message.error(error?.message || '发送失败');
-    }
-  };
-
-  // 处理好友申请
-  const handleFriendRequest = async (id: string, action: 'accept' | 'reject') => {
-    try {
-      const response: any = await friendApi.handleRequest(id, action);
-      if (response.code === 0) {
-        message.success(action === 'accept' ? '已添加好友' : '已拒绝');
-        setFriendRequests(friendRequests.filter((r) => r.id !== id));
-        if (action === 'accept') {
-          loadFriendGroups();
-        }
-      }
-    } catch (error) {
-      message.error('操作失败');
     }
   };
 
@@ -536,40 +520,9 @@ const ContactList: React.FC<ContactListProps> = ({ activeTab }) => {
                 </div>
               </div>
             ))}
-          </div>
-        </Tabs.TabPane>
-
-        <Tabs.TabPane tab={<Badge count={friendRequests.length}>好友申请</Badge>} key="requests">
-          <div className="contact-items">
-            {friendRequests.map((request) => (
-              <div key={request.id} className="contact-item">
-                <div className="contact-item-avatar">
-                  <Avatar
-                    size={40}
-                    src={request.from.avatar}
-                    icon={<UserOutlined />}
-                    style={{ borderRadius: 4 }}
-                  />
-                </div>
-                <div className="contact-item-info">
-                  <div className="contact-item-name">{request.from.nickname}</div>
-                  <div className="contact-item-msg">{request.message || '请求添加你为好友'}</div>
-                </div>
-                <div className="contact-item-actions">
-                  <Button
-                    type="primary"
-                    size="small"
-                    style={{ background: '#07c160', borderColor: '#07c160' }}
-                    onClick={() => handleFriendRequest(request.id, 'accept')}
-                  >
-                    接受
-                  </Button>
-                  <Button size="small" onClick={() => handleFriendRequest(request.id, 'reject')}>
-                    拒绝
-                  </Button>
-                </div>
-              </div>
-            ))}
+            {groups.length === 0 && (
+              <div className="empty-tip">暂无群组</div>
+            )}
           </div>
         </Tabs.TabPane>
       </Tabs>

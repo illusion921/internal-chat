@@ -143,12 +143,12 @@ const Login: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <p style={{ marginBottom: 8, color: '#666' }}>服务器地址：</p>
           <Input
-            placeholder="http://192.168.1.39"
+            placeholder="http://192.168.1.39:3002"
             value={serverUrl}
             onChange={(e) => setServerUrl(e.target.value)}
           />
           <p style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-            请输入服务器地址，例如：http://192.168.1.39（无需添加 /api）
+            请输入服务器地址，例如：http://192.168.1.39:3002（无需添加 /api）
           </p>
         </div>
       </Modal>

@@ -4,6 +4,7 @@ import zhCN from 'antd/locale/zh_CN';
 import Main from './pages/Main';
 import Login from './pages/Login';
 import { useAuthStore } from './stores/authStore';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 const App: React.FC = () => {
@@ -11,9 +12,11 @@ const App: React.FC = () => {
 
   return (
     <ConfigProvider locale={zhCN}>
-      <div className="app">
-        {user ? <Main /> : <Login />}
-      </div>
+      <ErrorBoundary>
+        <div className="app">
+          {user ? <Main /> : <Login />}
+        </div>
+      </ErrorBoundary>
     </ConfigProvider>
   );
 };

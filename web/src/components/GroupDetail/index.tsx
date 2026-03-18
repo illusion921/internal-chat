@@ -130,7 +130,7 @@ const GroupDetail: React.FC<GroupDetailProps> = ({ visible, groupId, onClose, on
   // 解散群组
   const handleDismiss = async () => {
     try {
-      const response: any = await (groupApi as any).dismiss(groupId);
+      const response: any = await groupApi.delete(groupId);
       if (response.code === 0) {
         message.success('群组已解散');
         onClose();

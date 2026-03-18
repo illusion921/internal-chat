@@ -79,6 +79,26 @@
   opacity: 0.5;
 }
 
+/* 图标容器 */
+.nav-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 小红点提示 */
+.nav-badge {
+  position: absolute;
+  top: -2px;
+  right: -6px;
+  width: 8px;
+  height: 8px;
+  background: #ff4d4f;
+  border-radius: 50%;
+  border: 2px solid #2e2e2e;
+}
+
 /* 底部操作 */
 .nav-footer {
   display: flex;
@@ -262,9 +282,10 @@
 .contact-tabs .ant-tabs-tab {
   padding: 10px 0;
   font-size: 13px;
+  color: #666;
 }
 
-.contact-tabs .ant-tabs-tab-active {
+.contact-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
   color: #1a1a1a;
 }
 

@@ -44,6 +44,9 @@ COPY --from=builder /app/prisma ./prisma
 # 创建数据目录
 RUN mkdir -p /app/uploads/avatars /app/uploads/files /app/uploads/images
 
+# 复制数据库初始化脚本
+COPY init-db.sql /app/init-db.sql
+
 # 环境变量
 ENV NODE_ENV=production
 ENV PORT=3001

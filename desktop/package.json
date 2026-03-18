@@ -16,16 +16,20 @@
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.main.json",
-    "package": "electron-builder"
+    "package": "electron-builder",
+    "package:win": "electron-builder --win",
+    "package:linux": "electron-builder --linux",
+    "package:mac": "electron-builder --mac",
+    "clean": "rimraf dist release"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.2.6",
+    "antd": "^5.12.0",
+    "axios": "^1.6.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "antd": "^5.12.0",
-    "zustand": "^4.4.7",
-    "axios": "^1.6.2",
     "socket.io-client": "^4.7.2",
-    "@ant-design/icons": "^5.2.6"
+    "zustand": "^4.4.7"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -35,24 +39,37 @@
     "concurrently": "^8.2.2",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
+    "rimraf": "^5.0.5",
     "typescript": "^5.3.2",
     "vite": "^5.0.7"
   },
   "build": {
     "appId": "com.internal-chat.desktop",
     "productName": "内网聊天",
+    "copyright": "Copyright © 2024 Internal Chat Team",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "build"
     },
     "files": [
       "dist/**/*",
-      "package.json"
+      "package.json",
+      "electron/preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico",
+        "filter": ["**/*"]
+      }
     ],
     "win": {
       "target": [
         { "target": "zip", "arch": ["x64"] },
         { "target": "nsis", "arch": ["x64"] }
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "linux": {
       "target": [
@@ -60,7 +77,22 @@
         { "target": "AppImage", "arch": ["x64", "arm64"] }
       ],
       "category": "Network",
-      "maintainer": "Internal Chat Team <team@internal-chat.local>"
+      "maintainer": "Internal Chat Team <team@internal-chat.local>",
+      "icon": "build/icon.icns"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "内网聊天"
     }
   }
 }

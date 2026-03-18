@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
+import { getWsUrl } from '@/config';
 import type { Message } from '../types/index';
 import { incrementUnread, sendBrowserNotification, requestNotificationPermission } from '@utils/notification';
 
@@ -30,8 +31,8 @@ export function connectSocket() {
   // 请求浏览器通知权限
   requestNotificationPermission();
 
-  // Web 端使用当前页面的 origin
-  const wsUrl = window.location.origin;
+  // 使用配置的 WebSocket 地址
+  const wsUrl = getWsUrl();
   
   socket = io(wsUrl, {
     auth: { token: accessToken },

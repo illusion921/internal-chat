@@ -53,8 +53,11 @@ export const useChatStore = create<ChatState>((set) => ({
           : c
       );
       
+      // 只有消息属于当前会话时才添加到消息列表
+      const isCurrentConversation = state.currentConversation?.id === message.conversationId;
+      
       return {
-        messages: [...state.messages, message],
+        messages: isCurrentConversation ? [...state.messages, message] : state.messages,
         conversations: updatedConversations,
       };
     }),

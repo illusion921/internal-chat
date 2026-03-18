@@ -14,6 +14,21 @@
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   padding: 40px 32px;
+  position: relative;
+}
+
+.login-settings {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.login-settings .ant-btn {
+  color: #999;
+}
+
+.login-settings .ant-btn:hover {
+  color: #07c160;
 }
 
 .login-header {

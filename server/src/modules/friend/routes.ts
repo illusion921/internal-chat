@@ -210,9 +210,18 @@ export async function friendRoutes(fastify: FastifyInstance) {
       throw new AppError('好友关系不存在', 20003, 404);
     }
 
-    // 删除好友关系
-    await prisma.friendship.delete({
-      where: { id },
+    // 确定好友ID
+    const friendId = friendship.userId === userId ? friendship.friendId : friendship.userId;
+
+    // 删除双向好友关系
+    await prisma.friendship.deleteMany({
+      where: {
+        status: 'accepted',
+        OR: [
+          { userId, friendId },
+          { userId: friendId, friendId: userId },
+        ],
+      },
     });
 
     return reply.send({

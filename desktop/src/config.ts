@@ -2,10 +2,10 @@
 export const config = {
   // API 服务器地址 - 可根据实际部署修改
   // 默认使用局域网地址，可根据实际情况修改
-  apiBaseUrl: 'http://192.168.1.39/api',
+  apiBaseUrl: 'http://192.168.1.39:3002/api',
   
   // WebSocket 服务器地址
-  wsUrl: 'ws://192.168.1.39',
+  wsUrl: 'ws://192.168.1.39:3002',
   
   // 文件上传大小限制 (字节)
   maxFileSize: 500 * 1024 * 1024, // 500MB

@@ -7,8 +7,10 @@ import {
   SafetyOutlined,
   PlusOutlined,
   LogoutOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { groupApi, friendApi } from '@services/api';
+import { useChatStore } from '@stores/chatStore';
 import type { Group, GroupMember } from '../../types/index';
 import './GroupInfo.css';
 
@@ -32,6 +34,7 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
   onClose,
   onQuit,
 }) => {
+  const { setCurrentConversation } = useChatStore();
   const [group, setGroup] = useState<GroupWithMembers | null>(null);
   const [, setLoading] = useState(false);
   const [inviteVisible, setInviteVisible] = useState(false);
@@ -122,10 +125,27 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
       if (response.code === 0) {
         message.success('已退出群组');
         onClose();
+        setCurrentConversation(null);
         onQuit?.();
       }
     } catch (error: any) {
       message.error(error?.message || '操作失败');
+    }
+  };
+
+  // 解散群组
+  const handleDismiss = async () => {
+    if (!groupId) return;
+    try {
+      const response: any = await groupApi.delete(groupId);
+      if (response.code === 0) {
+        message.success('群组已解散');
+        onClose();
+        setCurrentConversation(null);
+        onQuit?.();
+      }
+    } catch (error: any) {
+      message.error(error?.message || '解散失败');
     }
   };
 
@@ -178,7 +198,19 @@ const GroupInfo: React.FC<GroupInfoProps> = ({
             邀请成员
           </Button>
         )}
-        {!isOwner && (
+        {isOwner ? (
+          <Popconfirm
+            title="解散群组"
+            description="解散后群聊记录将被清空，确定解散？"
+            onConfirm={handleDismiss}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button danger icon={<DeleteOutlined />}>
+              解散群组
+            </Button>
+          </Popconfirm>
+        ) : (
           <Popconfirm
             title="确定要退出群组吗？"
             onConfirm={handleQuit}

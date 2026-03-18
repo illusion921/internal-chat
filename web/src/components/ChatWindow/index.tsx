@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useAuthStore } from '@stores/authStore';
 import { useChatStore } from '@stores/chatStore';
+import { useContactStore } from '@stores/index';
 import { messageApi, fileApi, groupApi } from '@services/api';
 import { sendMessage, markAsRead, joinGroupRoom, leaveGroupRoom, onMessageRecall } from '@services/socket';
 import { formatTime } from '@utils/format';
@@ -38,7 +39,9 @@ const ChatWindow: React.FC = () => {
     loading,
     setLoading,
     clearUnreadCount,
+    setConversations,
   } = useChatStore();
+  const { setGroups } = useContactStore();
 
   const [inputValue, setInputValue] = useState('');
   const [sending, setSending] = useState(false);
@@ -643,6 +646,19 @@ if (!currentConversation) {
         groupId={currentConversation?.type === 'group' ? currentConversation.target.id : null}
         currentUserId={user?.id || ''}
         onClose={() => setGroupInfoVisible(false)}
+        onQuit={async () => {
+          // 刷新群组列表和会话列表
+          try {
+            const [groupsRes, convsRes]: any[] = await Promise.all([
+              groupApi.getList(),
+              messageApi.getConversations(),
+            ]);
+            if (groupsRes.code === 0) setGroups(groupsRes.data);
+            if (convsRes.code === 0) setConversations(convsRes.data);
+          } catch (e) {
+            console.error('Failed to refresh:', e);
+          }
+        }}
       />
     </div>
   );

@@ -4,9 +4,6 @@ import { prisma } from '../../models/index.js';
 import { authMiddleware } from '../../middleware/auth.js';
 import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
 
-// 调试计数器
-let createGroupCallCount = 0;
-
 const createGroupSchema = z.object({
   name: z.string().min(1).max(50),
   memberIds: z.array(z.string().uuid()).max(199).optional(), // 群主 + 199成员
@@ -58,25 +55,9 @@ export async function groupRoutes(fastify: FastifyInstance) {
 
   // 创建群组
   fastify.post('/', { preHandler: authMiddleware }, async (request, reply) => {
-    createGroupCallCount++;
-    const currentCallId = createGroupCallCount;
-    
     const body = createGroupSchema.parse(request.body);
     const { name, memberIds = [] } = body;
     const userId = request.user!.userId;
-
-    // 调试日志
-    request.log.info({ callId: currentCallId, name, userId, memberIds }, 'Creating group - START');
-
-    // 如果不是第一次调用，直接返回（防止重复创建）
-    if (currentCallId > 1) {
-      request.log.warn({ callId: currentCallId }, 'Duplicate call detected, skipping');
-      return reply.send({
-        code: 0,
-        data: { id: 'skipped', name, memberCount: 1 },
-        message: '群组创建成功',
-      });
-    }
 
     // 检查群人数上限
     if (memberIds.length >= 200) {
@@ -84,7 +65,7 @@ export async function groupRoutes(fastify: FastifyInstance) {
     }
 
     // 创建群组和群主
-    request.log.info({ callId: currentCallId, name, userId }, 'Before prisma.group.create');
+    request.log.info({ name, userId, memberIds }, 'Creating group');
     const group = await prisma.group.create({
       data: {
         name,
@@ -102,7 +83,7 @@ export async function groupRoutes(fastify: FastifyInstance) {
         },
       },
     });
-    request.log.info({ callId: currentCallId, groupId: group.id }, 'After prisma.group.create');
+    request.log.info({ groupId: group.id }, 'Group created successfully');
 
     return reply.send({
       code: 0,

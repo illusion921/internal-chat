@@ -48,40 +48,13 @@ chmod +x install.sh
 # - 服务器 IP 地址
 # - 数据库密码（可选，默认随机生成）
 # - JWT 密钥（可选，默认随机生成）
+# - 管理员账号（可选，默认 admin）
+# - 管理员密码（可选，默认 admin123）
 
 # 3. 安装完成后访问
 # http://服务器IP
-# 账号: admin
-# 密码: admin123
-```
-
-## 手动安装（如果自动脚本失败）
-
-```bash
-# 1. 加载镜像
-docker load -i images.tar
-
-# 2. 创建配置文件
-cat > .env << EOF
-POSTGRES_PASSWORD=your_password
-JWT_SECRET=your_secret
-SERVER_IP=192.168.1.100
-EOF
-
-# 3. 启动服务
-docker compose up -d
-
-# 4. 等待服务启动（约 30 秒）
-sleep 30
-
-# 5. 创建管理员账号
-docker exec internal-chat-server node -e "
-const bcrypt = require('bcryptjs');
-console.log(bcrypt.hashSync('admin123', 10));
-" | xargs -I {} docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "
-INSERT INTO users (id, username, password_hash, nickname, status, created_at, updated_at) 
-VALUES (gen_random_uuid(), 'admin', '{}', '管理员', 'online', NOW(), NOW());
-"
+# 默认账号: admin
+# 默认密码: admin123
 ```
 
 ## 系统要求
@@ -101,6 +74,63 @@ systemctl start docker
 ```
 
 如果完全离线，需要单独下载 Docker 离线安装包。
+
+## 数据库初始化
+
+服务启动时会自动完成以下操作：
+
+1. **数据库初始化**: 使用 `init-db.sql` 创建所有数据表
+2. **管理员账号初始化**: 自动创建管理员账号
+
+管理员账号通过环境变量配置：
+- `ADMIN_USERNAME`: 管理员账号（默认 admin）
+- `ADMIN_PASSWORD`: 管理员密码（默认 admin123）
+
+### 手动初始化数据库
+
+如果自动初始化失败，可以手动执行：
+
+```bash
+# 进入数据库容器
+docker exec -it internal-chat-postgres bash
+
+# 执行初始化脚本
+PGPASSWORD=your_password psql -U postgres -d internal_chat -f /path/to/init-db.sql
+```
+
+或者从宿主机执行：
+
+```bash
+# 复制初始化脚本到容器
+docker cp init-db.sql internal-chat-postgres:/tmp/
+
+# 执行脚本
+docker exec internal-chat-postgres psql -U postgres -d internal_chat -f /tmp/init-db.sql
+```
+
+## 手动安装（如果自动脚本失败）
+
+```bash
+# 1. 加载镜像
+docker load -i images.tar
+
+# 2. 创建配置文件
+cat > .env << EOF
+POSTGRES_PASSWORD=your_password
+JWT_SECRET=your_secret
+SERVER_IP=192.168.1.100
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+EOF
+
+# 3. 启动服务
+docker compose up -d
+
+# 4. 等待服务启动（约 30 秒）
+# 服务会自动：
+# - 运行数据库迁移
+# - 创建管理员账号
+```
 
 ## 常用命令
 
@@ -151,16 +181,28 @@ docker logs internal-chat-postgres
 
 ```bash
 # 检查用户是否存在
-docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "SELECT * FROM users;"
+docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "SELECT username, nickname FROM users;"
 
-# 手动创建管理员
-docker exec internal-chat-server node -e "
-const bcrypt = require('bcryptjs');
-console.log(bcrypt.hashSync('newpassword', 10));
-" | xargs -I {} docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "
+# 检查服务日志中的初始化信息
+docker logs internal-chat-server 2>&1 | grep -i admin
+```
+
+### 手动创建管理员
+
+如果自动初始化失败，可以手动创建管理员：
+
+```bash
+# 进入服务器容器
+docker exec -it internal-chat-server sh
+
+# 生成密码哈希
+node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('admin123', 10));"
+
+# 使用输出的哈希值创建用户（在另一个终端）
+docker exec internal-chat-postgres psql -U postgres -d internal_chat -c "
 INSERT INTO users (id, username, password_hash, nickname, status, created_at, updated_at) 
-VALUES (gen_random_uuid(), 'admin', '{}', '管理员', 'online', NOW(), NOW())
-ON CONFLICT (username) DO UPDATE SET password_hash = '{}';
+VALUES (gen_random_uuid(), 'admin', '输出的密码哈希', '管理员', 'online', NOW(), NOW())
+ON CONFLICT (username) DO UPDATE SET password_hash = '输出的密码哈希';
 "
 ```
 
@@ -191,8 +233,7 @@ docker load -i images.tar
 # 3. 启动新服务
 docker compose up -d
 
-# 4. 如有数据库变更
-docker exec internal-chat-server npx prisma db push
+# 4. 如有数据库变更，服务会自动迁移
 ```
 
 ## 安全建议

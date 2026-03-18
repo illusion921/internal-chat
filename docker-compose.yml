@@ -24,6 +24,8 @@ services:
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://192.168.1.39,http://192.168.1.39:80,http://${SERVER_IP:-localhost},http://${SERVER_IP:-localhost}:80
       - LOG_LEVEL=info
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
     volumes:
       - uploads-data:/app/uploads
     depends_on:

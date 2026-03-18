@@ -6,7 +6,7 @@ import { AppError, ErrorCodes } from '../../middleware/errorHandler.js';
 
 const updateProfileSchema = z.object({
   nickname: z.string().min(1).max(50).optional(),
-  signature: z.string().max(100).optional(),
+  signature: z.string().max(100).nullable().optional(),
 });
 
 const searchSchema = z.object({
@@ -95,6 +95,8 @@ export async function userRoutes(fastify: FastifyInstance) {
     const body = updateProfileSchema.parse(request.body);
     const userId = request.user!.userId;
 
+    request.log.info({ userId, body }, 'Update profile request');
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: body,
@@ -106,6 +108,8 @@ export async function userRoutes(fastify: FastifyInstance) {
         signature: true,
       },
     });
+
+    request.log.info({ user }, 'Profile updated');
 
     return reply.send({
       code: 0,

@@ -105,15 +105,34 @@ const Settings: React.FC<SettingsProps> = ({ visible, onClose }) => {
     }
   }, [visible, activeTab]);
 
+  // Modal 打开时设置表单值
+  useEffect(() => {
+    if (visible && user) {
+      form.setFieldsValue({
+        nickname: user.nickname,
+        signature: user.signature,
+      });
+    }
+  }, [visible, user]);
+
   const handleUpdateProfile = async (values: any) => {
+    // 过滤掉 null/undefined 值
+    const data = Object.fromEntries(
+      Object.entries(values).filter(([_, v]) => v != null)
+    );
+    console.log('[Settings] handleUpdateProfile called with data:', data);
     try {
-      const response: any = await userApi.updateProfile(values);
+      const response: any = await userApi.updateProfile(data);
+      console.log('[Settings] updateProfile response:', response);
       if (response.code === 0) {
         updateUser(response.data);
         message.success('更新成功');
+      } else {
+        message.error(response.message || '更新失败');
       }
-    } catch (error) {
-      message.error('更新失败');
+    } catch (error: any) {
+      console.error('[Settings] updateProfile error:', error);
+      message.error(error?.message || '更新失败');
     }
   };
 
